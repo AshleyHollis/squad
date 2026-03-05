@@ -68,6 +68,14 @@
 - Performance-critical paths requiring benchmarking
 - Changes requiring cross-team discussion
 
+### Git Workflow
+
+When working on issues, follow the Squad branching model:
+- Branch from `dev` (not main): `git checkout dev && git pull && git checkout -b squad/{issue-number}-{slug}`
+- Create PRs targeting `dev`: `gh pr create --base dev`
+- Use branch naming convention: `squad/{issue-number}-{kebab-case-slug}`
+- After merge, delete branch and switch back to dev
+
 ## Project Context
 
 - **Owner:** Brady

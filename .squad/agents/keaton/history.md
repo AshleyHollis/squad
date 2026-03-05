@@ -605,6 +605,14 @@ Keaton's split plan produced definitive SDK/CLI mapping with clean DAG (CLI → 
 - Integration with existing `sharing/` module needs design work — don't force-fit
 
 **Files that would need changes (for actual implementation):**
+
+### 📌 Team update (2026-03-05T01:05:00Z): Architecture Decision — 3-Branch Branching Model Adopted
+- **Context:** Team analyzed 4-branch model proposal and recommended 3-branch model for pre-1.0 product with 21 parallel agents shipping frequently.
+- **Decision:** Adopt 3-branch workflow: `dev` (integration) → `insiders` (preview) → `main` (production). Drop `release` branch as YAGNI for pre-1.0.
+- **Rationale:** Fewer branches = fewer merge surfaces. 4 branches is over-engineered; stale v0.5.x branches evidence this (went stale while main advanced to v0.8.21).
+- **Key implications:** All PRs target dev only. Issue branches use `squad/{issue-number}-{slug}`. Main is tag-triggered, released, in-npm only. Insiders is auto-synced from dev (deployment target, not promotion step).
+- **Deliverables:** Git-workflow skill created, CI/CD workflows validated for 3-branch model, branch infrastructure reset (dev/insiders from main).
+- **Decided by:** Keaton (Lead) — recommendation based on technical analysis overrode 4-branch proposal per team protocol.
 - `packages/squad-sdk/src/resolution.ts` — add `consult?: boolean` to SquadDirConfig
 - `packages/squad-sdk/src/index.ts` — export consult helpers
 - `packages/squad-cli/src/cli/commands/consult.ts` (NEW) — implement command

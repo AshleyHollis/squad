@@ -569,3 +569,10 @@ The CLI couldn't run because `packages/squad-sdk/src/index.ts` was missing re-ex
 
 
 📌 Team update (2026-03-04T17:52:00Z): Migration docs file-safety guidance added — doctor command now live in CLI (fixes #188) — decided by Keaton, implemented by McManus
+
+### 2026-03-05: Branching model implementation
+- Created git-workflow skill file for 3-branch model (dev/insiders/main)
+- Updated Kobayashi charter with branching rules
+- Updated team.md with @copilot git workflow instructions
+- Key: Skill file is the single source of truth — coordinator loads it and injects into spawn prompts
+- Decision: `release` branch dropped per Keaton's recommendation (YAGNI pre-1.0)

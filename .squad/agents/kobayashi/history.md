@@ -854,3 +854,68 @@ pm publish --access public --ignore-scripts\ — @bradygaster/squad-cli@0.8.20 p
 **Outcome:** Release v0.8.20 completed successfully. All stakeholders can now install latest via \
 pm install -g @bradygaster/squad-cli\. Development continues at 0.8.21-preview.1.
 
+### 2026-03-05: Branch Infrastructure Setup — 3-Branch Model Implementation
+**Status:** COMPLETE. Branch infrastructure reconfigured per team decision on 3-branch model (dev/insiders/main).
+
+#### Pre-flight Assessment
+**Current State:**
+- origin/dev: 20+ commits behind origin/main (stale since v0.5.x era, last commit 06bc103)
+- origin/dev had NO unique commits — all work already in main
+- origin/insider: exists (singular form)
+- Stale branches identified: migration, migration-merged, beta-main-merge, pr-547
+
+**Desired State:**
+- dev reset to match current main (33b61a6)
+- insiders branch (plural) created from main
+- Stale merged branches cleaned up
+- Local working directory on dev
+
+**Safety Verification:**
+- ✅ dev contains no unique work — safe to force-reset
+- ✅ All stale branches verified merged to main via commit inspection
+- ✅ All operations reversible via reflog (90-day retention)
+
+#### Operations Performed
+1. **Dev branch reset:**
+   - Stashed uncommitted changes (history.md edits from other agents)
+   - Checked out dev, reset to origin/main (33b61a6)
+   - Force-pushed with --force-with-lease: `06bc103..33b61a6`
+   - Result: dev now tracking current main
+
+2. **Insiders branch creation:**
+   - Created insiders branch from origin/main
+   - Pushed to origin as new branch
+   - Result: origin/insiders created alongside origin/insider (singular)
+   - **Note:** Left origin/insider intact for Brady to confirm deletion
+
+3. **Stale branch cleanup:**
+   - Verified merge status for each branch:
+     - migration (9a6964c): ✅ in main
+     - migration-merged (905b2d7): ✅ in main
+     - beta-main-merge (905b2d7): ✅ in main
+     - pr-547 (eab6948): ✅ PR #547 merged to main (4ecc244)
+   - Deleted local: migration, beta-main-merge, pr-547
+   - Deleted remote: origin/migration, origin/migration-merged
+   - Result: 2 remote branches removed, 3 local branches removed
+
+4. **Working directory:**
+   - Switched to dev branch as requested
+   - Brady will start on dev per 3-branch workflow
+
+#### Key Decision: Conservative on origin/insider
+Did NOT delete origin/insider (singular). Reasons:
+1. Team decision document says "insiders" but remote has "insider"
+2. Created new "insiders" branch as requested
+3. Both now exist — leaving Brady to confirm which to keep/delete
+4. Zero tolerance for state corruption > speed of execution
+
+#### Outcome
+Branch infrastructure now matches 3-branch model:
+- ✅ dev reset and synced to main
+- ✅ insiders branch created from main
+- ✅ Stale branches cleaned up
+- ✅ Working directory on dev
+- ⚠️ origin/insider and origin/insiders both exist — needs Brady's confirmation
+
+**State is clean, reversible, and ready for Brady's return.**
+

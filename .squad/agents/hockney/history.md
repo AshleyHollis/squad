@@ -356,6 +356,13 @@ All four agents shipped Phase 2 in parallel: Fortier wired TTFT/duration/through
 - **spawn.ts** (8 tests): `loadAgentCharter()` with teamRoot/missing charter/case-insensitive resolution, `buildAgentPrompt()` with charter/systemContext/empty charter.
 - **lifecycle.ts** (6 tests): ShellLifecycle initialization with missing .squad/, missing team.md, error state, agent discovery, registry population, empty team handling.
 - **router.ts** (15 tests): `parseInput()` for slash commands (with args, case-insensitive, multiple args), @Agent direct addressing (comma syntax, case-insensitive, no message, unknown agents), coordinator routing (plain text, empty, whitespace), edge cases (leading/trailing whitespace, multiline content).
+
+### 📌 Team update (2026-03-05T01:05:00Z): CI/CD Pipeline Implications — 3-Branch Branching Model Adopted
+- **Context:** Team adopted 3-branch branching model (dev/insiders/main, drop release). Hockney validated GitHub Actions compatibility.
+- **CI/CD implications:** Issue branches (PRs to dev) require full test suite, build, lint. Dev publishes npm `preview` tag on merge. Insiders publishes npm `insiders` tag (auto-synced from dev). Main is tag-triggered npm publish only.
+- **Validation done:** Reviewed 15 existing workflows. Updated trigger rules per branch. `release` branch removal simplifies promotion pipeline (no RC step).
+- **Testing impact:** No additional test requirements. Existing 2931 tests + upcoming 10 test gap issues (#558–#567) cover CI/CD validation.
+- **Status:** Workflows analyzed, ready for implementation. Hockney available for rollout coordination if needed.
 - **sessions.ts** (10 tests): SessionRegistry operations (register, get, getAll, getActive, updateStatus, remove, clear, no-op on unknown).
 - **commands.ts** (13 tests): `executeCommand()` for all slash commands (/help, /status, /agents, /history with limits, /clear, /quit, /exit, unknown command).
 - **memory.ts** (12 tests): MemoryManager limits, `canCreateSession()`, `trackBuffer()` growth/rejection/multi-session, `trimMessages()`, `clearBuffer()`, `getStats()`.

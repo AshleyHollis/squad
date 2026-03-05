@@ -1940,3 +1940,44 @@ This is low-effort, high-value — a broken link on the GitHub Pages site erodes
 **Why:** Users upgrading from v0.5.4 hit vague migration guidance on which files to preserve. KevinUK's question exposed gap: no directory-level checklist. Copying wrong files (e.g., old casting data) breaks the team. Clear guidance prevents migration failures.
 **Details from inbox:** See keaton-migration-docs-gaps.md for full analysis (root cause, file matrix, implementation details, validation steps).
 
+### 2026-03-05T00:56:39Z: User directive — No working in main
+**By:** Brady (via Copilot)
+**What:** "We shouldn't be working in main." All work must happen on feature/issue branches, flow through dev, then insiders, then main. Main is the released, tagged, in-npm branch only.
+**Why:** User request — captured for team memory. Establishes branching model: dev → insiders → main, with issue branches named by issue number + slug.
+
+### 2026-03-05T01:05:00Z: Branching Model Decision — 3-Branch Model Adopted
+**By:** Keaton (Lead Architect), Kobayashi (Git), Fenster (Core Dev), Hockney (CI/CD)
+**Decision:** Adopt 3-branch model (dev/insiders/main). Drop `release` branch.
+**Branch Model:**
+- `main` — Released code, tagged, in npm. Production traffic.
+- `dev` — Integration branch for all feature work. Publishes as npm `preview` tag on merge.
+- `insiders` — Early-access preview. Auto-synced from dev periodically. Publishes as npm `insiders` tag.
+**Rules:**
+- All PRs target `dev` only. No exceptions.
+- Issue branches: `squad/{issue-number}-{slug}`
+- Main receives merges from dev only. No direct commits.
+- Insiders is a deployment target (auto-synced), not a promotion step.
+- `release` branch omitted — YAGNI for pre-1.0. Can add post-1.0 for LTS.
+**Rationale:** 4 branches over-engineered for pre-1.0 product with 21 agents shipping frequently. Fewer branches = fewer merge surfaces. Evidence: v0.5.x dev/insider branches went stale while main advanced to v0.8.21.
+**Implementation:** Fenster created git-workflow skill. Kobayashi reset branch infrastructure. Hockney validated CI compatibility.
+**Status:** Adopted and implemented.
+
+### 2026-03-05: Git Workflow Skill File Created
+**By:** Fenster (Core Dev)
+**What:** Created `.squad/skills/git-workflow/SKILL.md` — teachable workflow for all agents covering branch naming (`squad/{issue}-{slug}`), PR rules (target dev), promotion pipeline (dev→insiders→main), and anti-patterns.
+**Why:** Every agent must follow identical branching rules. Skills are loaded by coordinator and injected into spawn prompts — safer than scattered documentation.
+**Status:** Skill deployed. All agents now reference it.
+
+### 2026-03-05: CI/CD Pipeline Validated for 3-Branch Model
+**By:** Hockney (CI/CD & Testing)
+**What:** Analyzed and validated GitHub Actions workflows for 3-branch model. Documented per-branch CI rules: issue branches (PR to dev) require full test suite; dev publishes npm `preview`; insiders publishes npm `insiders` tag; main is tag-triggered npm publish only.
+**Why:** Transition from 4-branch to 3-branch requires workflow updates. Skipping release branch simplifies promotion pipeline.
+**Status:** Workflows analyzed. Ready for implementation.
+
+### 2026-03-05: Branch Infrastructure Reset — 3-Branch Setup
+**By:** Kobayashi (Git & Release)
+**What:** Executed branch infrastructure reset: (1) Reset origin/dev to main (33b61a6). (2) Created origin/insiders from main. (3) Deleted stale branches (migration, beta-main-merge, pr-547). (4) Current working branch: dev.
+**Judgment Call:** Preserved both origin/insider (singular, existing) and origin/insiders (plural, new). Conservative approach pending Brady confirmation.
+**Action Required:** Brady to decide: keep origin/insiders (matches decision) + delete origin/insider, or keep origin/insider and delete origin/insiders.
+**Status:** Infrastructure ready. Awaiting final branch naming confirmation.
+

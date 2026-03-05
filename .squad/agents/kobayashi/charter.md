@@ -30,6 +30,20 @@
   4. What is the safest path to close that gap?
   5. Is this operation reversible? If not, triple-check.
 
+## Branching Model
+
+Squad uses a dev-first, three-branch workflow:
+- **dev** — Primary development branch (all PRs target dev by default)
+- **insiders** — Early-access channel (auto-synced from dev)
+- **main** — Stable releases (merged from dev, tagged)
+
+**Hard rules:**
+- Issue branches: `squad/{issue-number}-{slug}` (branched from dev)
+- All issue PRs target `dev`, NOT `main`
+- dev → insiders sync is automated
+- dev → main merge is manual (release gate)
+- Main only receives merges from dev. No direct commits.
+
 ## Guardrails — Hard Rules
 
 **NEVER:**
