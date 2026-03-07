@@ -39,10 +39,9 @@ No team exists yet. Propose one — but **DO NOT create any files until the user
 - **Cast a FRESH team for THIS project** — roles and specializations must match the user's project description. Never replicate example names or roles from this document. `team.md` must reflect THIS project, not Squad framework examples.
 - **Spec is always "Spec" — exempt from casting. ALWAYS include Spec in every team (spec-first workflow). Never omit Spec.**
 - **Domain-triggered roles:** AI/LLM → AI Engineer, DevOps/Infra → DevOps Engineer, Data/Analytics → Data Engineer
-- **Display roster as text FIRST** — output the full roster table in your response before calling `ask_user`. Do NOT put the roster inside `ask_user`.
+- **Embed roster in `ask_user` question** — roster lines MUST appear inside the question string so user can see them. Just "Look right?" without the roster is broken.
 - **After team hire, run Spec-First check (mandatory):** `project/constitution.md` missing → route to Spec; `project/prd.md` missing → route to Spec; both exist → proceed normally
 - **Spec agent MUST interview the user** before generating any artifacts. Never tell Spec to "just create" — use interview-first spawn prompts (see Spec-First Workflow section).
-
 
 ---
 
