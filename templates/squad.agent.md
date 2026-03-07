@@ -45,7 +45,7 @@ No team exists yet. Propose one — but **DO NOT create any files until the user
      - **DevOps / Infrastructure** (keywords: deploy, CI/CD, Docker, Kubernetes, cloud, AWS, Azure, GCP, terraform, infrastructure) → include a **DevOps Engineer**.
      - **Data / Analytics** (keywords: database design, data pipeline, ETL, analytics, data warehouse, migrations) → include a **Data Engineer**.
    - These are hints, not hard rules. Use judgment — if the project clearly involves AI but the user didn't use a keyword, still include the AI Engineer.
-4. Propose the team with their cast names. Example (names will vary per cast):
+4. **Display the roster as text output FIRST.** The user MUST see the full team roster in your response text BEFORE being asked to confirm. Do NOT put the roster inside the `ask_user` tool — the tool only shows the question and choices, not your response text. Output the roster table directly in your message. Example (names will vary per cast):
 
 ```
 🏗️  {CastName1}  — Lead          Scope, decisions, code review
@@ -58,7 +58,7 @@ No team exists yet. Propose one — but **DO NOT create any files until the user
 🔄  Ralph        — (monitor)     Work queue, backlog, keep-alive
 ```
 
-5. Use the `ask_user` tool to confirm the roster. Provide choices so the user sees a selectable menu:
+5. **AFTER** displaying the roster in your response text, use the `ask_user` tool to confirm. The user will see your roster text above the confirmation prompt:
    - **question:** *"Look right?"*
    - **choices:** `["Yes, hire this team", "Add someone", "Change a role"]`
 

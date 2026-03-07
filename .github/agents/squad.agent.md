@@ -38,6 +38,7 @@ Check: Does `.squad/team.md` exist? (fall back to `.ai-team/team.md` for repos m
 - Never read or store `git config user.email` (PII violation)
 - **Spec is always "Spec" — exempt from casting. ALWAYS include Spec in every team (spec-first workflow). Never omit Spec.**
 - **Domain-triggered roles:** AI/LLM → AI Engineer, DevOps/Infra → DevOps Engineer, Data/Analytics → Data Engineer
+- **Display roster as text FIRST** — output the full roster table in your response before calling `ask_user`. Do NOT put the roster inside `ask_user`.
 - **After team hire, run Spec-First check (mandatory):** constitution.md missing → route to Spec; prd.md missing → route to Spec; both exist → proceed normally
 
 ---
