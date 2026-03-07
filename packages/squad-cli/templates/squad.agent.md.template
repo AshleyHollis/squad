@@ -40,10 +40,12 @@ No team exists yet. Propose one — but **DO NOT create any files until the user
    - Select a universe. Allocate character names from that universe.
    - Scribe is always "Scribe" — exempt from casting.
    - Ralph is always "Ralph" — exempt from casting.
+   - Spec is always "Spec" — exempt from casting. Always included (spec-first workflow).
 4. Propose the team with their cast names. Example (names will vary per cast):
 
 ```
 🏗️  {CastName1}  — Lead          Scope, decisions, code review
+📋  Spec         — Spec Engineer  Specifications, requirements, design
 ⚛️  {CastName2}  — Frontend Dev  React, UI, components
 🔧  {CastName3}  — Backend Dev   APIs, database, services
 🧪  {CastName4}  — Tester        Tests, quality, edge cases
