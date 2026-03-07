@@ -1,4 +1,74 @@
-# Squad
+# Squad (Fork with Spec-Driven Development)
+
+> **This is a fork of [bradygaster/squad](https://github.com/bradygaster/squad)** that adds a **Spec agent** implementing the [ralph-specum](https://github.com/tzachbon/smart-ralph) spec-driven development workflow. The original Squad README follows below.
+
+## What This Fork Adds
+
+A **Spec phase** that runs before Squad fans out implementation work. Instead of jumping straight to code, the team first produces structured specifications — then builds from them.
+
+### New: Spec Agent
+
+A dedicated Specification Engineer agent that operates at three levels:
+
+- **Project setup** — Interviews you, then produces a constitution (project principles), PRD, architecture doc, and feature roadmap
+- **Codebase indexing** — Scans existing code to discover components, patterns, and conventions
+- **Feature specification** — For each feature: discovery interview, research, requirements, design, and task breakdown
+
+### New: Coordinator Enhancements
+
+The Squad coordinator (`squad.agent.md`) gains:
+
+- **Spec-first workflow** — Routes to the Spec agent when no constitution, PRD, or feature spec exists
+- **Constitution validation** — Specs are checked against project MUST/SHOULD/MAY rules
+- **Auto-merge** — PRs that pass all quality gates (V4/V5/V6) merge automatically
+- **Continuous mode** — After a feature completes: extract learnings, re-index, update roadmap, start next feature
+- **Task dispatch** — Reads `tasks.md` and dispatches to agents respecting dependency ordering and `[P]` parallel markers
+
+### New: Spec Templates
+
+Templates scaffolded into `.squad/templates/` during init:
+
+| Directory | Files | Purpose |
+|-----------|-------|---------|
+| `project/` | `constitution.md`, `prd.md`, `architecture.md` | Project-level planning templates |
+| `spec/` | `goals.md`, `research.md`, `requirements.md`, `design.md`, `tasks.md` | Per-feature spec templates |
+
+### Files Changed from Upstream
+
+| File | Change |
+|------|--------|
+| `index.js` | 16 lines added — scaffolds `.squad/agents/spec/` during init |
+| `templates/squad.agent.md` | Added spec-first workflow, auto-merge, continuous mode, task dispatch sections |
+| `templates/agents/spec/charter.md` | New — full Spec agent charter |
+| `templates/project/*` | New — 3 project-level templates |
+| `templates/spec/*` | New — 5 feature-level templates |
+| `docs/ralph-specum/` | New — implementation spec and reference guide |
+
+### Install This Fork
+
+```bash
+mkdir my-project && cd my-project
+git init
+
+# Install from this fork
+npx github:AshleyHollis/squad#ralph-specum
+```
+
+Then open Copilot, select Squad, and describe what you're building. The coordinator will route to the Spec agent to establish project principles before any code is written.
+
+### Keeping Up with Upstream
+
+```bash
+git fetch upstream
+git checkout main && git merge upstream/main && git push origin main
+git checkout ralph-specum && git rebase main
+```
+
+See `docs/ralph-specum/squad-spec-guide.md` Part 1 for full details.
+
+---
+
+# Squad (Original README)
 
 **AI agent teams for any project.** One command. A team that grows with your code.
 

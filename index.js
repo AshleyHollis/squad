@@ -1544,6 +1544,22 @@ if (!isUpgrade) {
   }
 }
 
+// Scaffold Spec agent (spec-driven development — skip if agent dir already exists)
+const specAgentSrc = path.join(root, 'templates', 'agents', 'spec');
+const specAgentDest = path.join(squadInfo.path, 'agents', 'spec');
+if (fs.existsSync(specAgentSrc) && !fs.existsSync(specAgentDest)) {
+  copyRecursive(specAgentSrc, specAgentDest);
+  console.log(`${GREEN}✓${RESET} ${squadInfo.name}/agents/spec/ (Spec agent charter)`);
+} else if (isUpgrade && fs.existsSync(specAgentSrc) && fs.existsSync(specAgentDest)) {
+  // On upgrade, refresh the charter (squad-owned) but preserve any user additions
+  const charterSrc = path.join(specAgentSrc, 'charter.md');
+  const charterDest = path.join(specAgentDest, 'charter.md');
+  if (fs.existsSync(charterSrc)) {
+    fs.copyFileSync(charterSrc, charterDest);
+    console.log(`${GREEN}✓${RESET} ${BOLD}upgraded${RESET} ${squadInfo.name}/agents/spec/charter.md`);
+  }
+}
+
 // Scaffold identity files (now.md, wisdom.md) — both init and upgrade
 const nowMdPath = path.join(identityDir, 'now.md');
 const wisdomMdPath = path.join(identityDir, 'wisdom.md');

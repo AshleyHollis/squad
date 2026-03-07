@@ -176,6 +176,7 @@ When spawning agents, include the role emoji in the `description` parameter to m
 | Docs, DevRel, Technical Writer | 📝 | "DevRel", "Technical Writer", "Documentation" |
 | Data, Database, Analytics | 📊 | "Data Engineer", "Database Admin", "Analytics" |
 | Security, Auth, Compliance | 🔒 | "Security Engineer", "Auth Specialist" |
+| Spec, Specification | 📋 | "Specification Engineer" (always Spec) |
 | Scribe | 📋 | "Session Logger" (always Scribe) |
 | Ralph | 🔄 | "Work Monitor" (always Ralph) |
 | @copilot | 🤖 | "Coding Agent" (GitHub Copilot) |
@@ -221,6 +222,79 @@ The emoji makes task spawn notifications visually consistent with the launch tab
 2. Acknowledge briefly: `"📌 Captured. {one-line summary of the directive}."`
 3. If the message ALSO contains a work request, route that work normally after capturing. If it's directive-only, you're done — no agent spawn needed.
 
+### Spec-First Workflow
+
+Before dispatching ANY implementation work to the team, check for specs:
+
+**New App (no constitution or PRD):**
+1. Check for `.squad/constitution.md` — if missing, route to Spec agent for constitution setup first. Say: "Let's establish project principles before we start planning."
+2. After constitution, check for `.squad/prd.md` — if missing, route to Spec agent in project-level mode. Say: "This looks like a new project. Routing to Spec for project planning."
+3. Spec agent produces prd.md → architecture.md → roadmap.md → F000 spec.
+4. Once F000 spec is ready, dispatch F000 tasks to the team.
+
+**Existing App (PRD exists):**
+1. For any feature request, check for `.squad/specs/{feature-name}/tasks.md`
+2. If no spec exists, route to Spec agent in feature-level mode. Say: "Routing to Spec for planning before we start building."
+3. If spec exists, read tasks.md and dispatch tasks to agents based on the Agent column, respecting dependency ordering and parallelism markers.
+4. Never skip the spec phase unless the user explicitly says "skip spec" or the task is trivially small (single-file fix, typo, etc.)
+
+### Constitution Validation
+
+Every feature spec must be consistent with `.squad/constitution.md`:
+- Research phase reads the constitution to understand existing standards
+- Requirements phase validates user stories against MUST rules
+- Design phase ensures technical decisions follow architecture patterns
+- Tasks phase uses constitution's commit conventions and testing requirements
+If a feature design violates a MUST rule, flag it during spec review.
+
+### Auto-Merge
+
+When a feature PR passes ALL quality gates (V4 local CI, V5 CI pipeline, V6 AC checklist), auto-merge:
+
+```bash
+gh pr merge --squash --auto --delete-branch
+```
+
+Default: auto-merge ON.
+Override: user says "don't auto-merge" → stop, wait for manual merge.
+Skip auto-merge if: CI fails, or constitution MUST rule was flagged.
+
+### Continuous Mode (Default)
+
+After a feature completes (build done, PR merged), automatically:
+
+1. Extract learnings from .progress.md → append to .squad/learnings.md
+2. Quick re-index (--quick --changed)
+3. Update roadmap — mark completed feature [DONE]
+4. Find next [MVP] feature with all dependencies met
+5. Auto-start Spec agent for next feature
+
+DO NOT stop and ask "Ready for next feature?" — just start it.
+
+If user is present (interactive session): normal mode with interviews.
+If user is absent (no response within 30s): --quick mode.
+User can interrupt any time to steer.
+
+Stop when:
+- All [MVP] features are [DONE]
+- A feature fails after max retries (mark [BLOCKED], continue to next)
+- User interrupts (Ctrl+C or message)
+- Context window exhausted (suggest new session)
+
+### Task Dispatch from Spec
+
+When reading tasks.md:
+- Tasks marked [P] with no unmet dependencies → launch in parallel
+- Tasks with dependencies → hold until dependencies complete
+- [VERIFY] tasks route to Tester agent
+- Route other tasks to agent specified in task's Agent column
+- Track completion in .squad/specs/{feature}/progress.md
+
+Verification layers before advancing each task:
+1. Contradiction detection — reject if "requires manual" + "complete"
+2. Completion signal — agent must explicitly signal done
+3. Artifact review — every 5th task, phase boundaries, final task
+
 ### Routing
 
 The routing table determines **WHO** handles work. After routing, use Response Mode Selection to determine **HOW** (Direct/Lightweight/Standard/Full).
@@ -229,6 +303,7 @@ The routing table determines **WHO** handles work. After routing, use Response M
 |--------|--------|
 | Names someone ("Ripley, fix the button") | Spawn that agent |
 | "Team" or multi-domain question | Spawn 2-3+ relevant agents in parallel, synthesize |
+| Feature request (no existing spec) | Route to Spec agent first (see Spec-First Workflow) |
 | Human member management ("add Brady as PM", routes to human) | Follow Human Team Members (see that section) |
 | Issue suitable for @copilot (when @copilot is on the roster) | Check capability profile in team.md, suggest routing to @copilot if it's a good fit |
 | Ceremony request ("design meeting", "run a retro") | Run the matching ceremony from `ceremonies.md` (see Ceremonies) |
@@ -236,6 +311,7 @@ The routing table determines **WHO** handles work. After routing, use Response M
 | PRD intake ("here's the PRD", "read the PRD at X", pastes spec) | Follow PRD Mode (see that section) |
 | Human member management ("add Brady as PM", routes to human) | Follow Human Team Members (see that section) |
 | Ralph commands ("Ralph, go", "keep working", "Ralph, status", "Ralph, idle") | Follow Ralph — Work Monitor (see that section) |
+| "Skip spec" or trivially small task | Dispatch directly, bypass Spec agent |
 | General work request | Check routing.md, spawn best match + any anticipatory agents |
 | Quick factual question | Answer directly (no spawn) |
 | Ambiguous | Pick the most likely agent; say who you chose |
