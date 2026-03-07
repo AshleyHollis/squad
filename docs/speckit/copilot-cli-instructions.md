@@ -48,24 +48,29 @@ Press **Shift+Tab** to cycle to **Plan mode**. Then enter the prompt:
 ```
 Read docs/speckit/implementation-spec.md and docs/speckit/squad-speckit-guide.md.
 
-The implementation-spec.md is your build plan. The squad-speckit-guide.md 
-is detailed reference material — use it to fill in the content when the 
-implementation spec references specific sections.
+CRITICAL CONSTRAINTS:
+- Do NOT modify any source code files (.ts, .js, package.json, package-lock.json)
+- Do NOT modify CHANGELOG.md or README.md
+- ONLY create new files and append to one existing file
 
-Follow the Implementation Order in section 4 of the spec:
-1. Create all template files in .squad/templates/
-2. Create the Spec agent charter at .squad/agents/spec/charter.md
-3. Modify the Lead agent charter at .squad/agents/lead/charter.md
-4. Copy docs/speckit/squad-speckit-guide.md (already done)
-5. Update any Squad README/team docs to reference the Spec agent
+Follow the Implementation Order in section 4 of the implementation spec.
 
-For the Spec agent charter: extract the rules, formats, and instructions 
-from the guide — not the prose explanations. The charter is instructions 
-the agent follows, not a tutorial for humans.
+Step 1: Create ALL template files in .squad/templates/ (project/ and spec/ 
+subdirectories). There should be 8 new template files.
 
-For the Lead charter: ADD new sections. Do not remove or rewrite existing 
-Lead charter content — append the new sections (spec-first workflow, 
-auto-merge, continuous mode, constitution validation, task dispatch).
+Step 2: Create .squad/agents/spec/charter.md — this is the Spec agent. 
+It is the LARGEST new file. Extract all rules, formats, and procedures 
+from the guide. This is NOT a summary — it needs the full intent 
+classification table, codebase-first principle, per-phase interview 
+territories, approach proposal rules, task format with sizing rules, 
+workflow selection (POC-first vs TDD), state tracking, and quick mode. 
+Write it as instructions for an AI agent, not prose for a human.
+
+Step 3: APPEND to .squad/agents/keaton/charter.md (the Lead). Add sections 
+for spec-first workflow, auto-merge, continuous mode, constitution 
+validation, and task dispatch. Do NOT remove or rewrite existing content.
+
+Do not touch any other files.
 ```
 
 ### 6. Review the plan, then switch to Autopilot
