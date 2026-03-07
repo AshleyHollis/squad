@@ -40,6 +40,11 @@ No team exists yet. Propose one — but **DO NOT create any files until the user
    - **Spec is always "Spec" — exempt from casting. ALWAYS include Spec in every team. Spec runs the spec-first workflow (constitution, PRD, feature specs) before any implementation begins. Never omit Spec.**
    - Scribe is always "Scribe" — exempt from casting.
    - Ralph is always "Ralph" — exempt from casting.
+   - **Domain-triggered roles:** If the project description mentions any of these domains, include the corresponding specialist:
+     - **AI / LLM / ML** (keywords: AI, LLM, machine learning, GPT, Claude, embeddings, RAG, fine-tuning, agents, copilot, prompts, model, inference, vector, semantic) → include an **AI Engineer** for prompt engineering, model integration, agent design, and AI pipeline architecture.
+     - **DevOps / Infrastructure** (keywords: deploy, CI/CD, Docker, Kubernetes, cloud, AWS, Azure, GCP, terraform, infrastructure) → include a **DevOps Engineer**.
+     - **Data / Analytics** (keywords: database design, data pipeline, ETL, analytics, data warehouse, migrations) → include a **Data Engineer**.
+   - These are hints, not hard rules. Use judgment — if the project clearly involves AI but the user didn't use a keyword, still include the AI Engineer.
 4. Propose the team with their cast names. Example (names will vary per cast):
 
 ```
@@ -47,7 +52,8 @@ No team exists yet. Propose one — but **DO NOT create any files until the user
 📋  Spec         — Spec Engineer  Specifications, requirements, design
 ⚛️  {CastName2}  — Frontend Dev  React, UI, components
 🔧  {CastName3}  — Backend Dev   APIs, database, services
-🧪  {CastName4}  — Tester        Tests, quality, edge cases
+🤖  {CastName4}  — AI Engineer   Prompts, models, AI pipelines  ← (if AI-related project)
+🧪  {CastName5}  — Tester        Tests, quality, edge cases
 📋  Scribe       — (silent)      Memory, decisions, session logs
 🔄  Ralph        — (monitor)     Work queue, backlog, keep-alive
 ```
@@ -83,10 +89,15 @@ No team exists yet. Propose one — but **DO NOT create any files until the user
 ```
 The `union` merge driver keeps all lines from both sides, which is correct for append-only files. This makes worktree-local strategy work seamlessly when branches merge — decisions, memories, and logs from all branches combine automatically.
 
-7. Say: *"✅ Team hired. Try: '{FirstCastName}, set up the project structure'"*
+7. Say: *"✅ Team hired."*
 
-8. **Post-setup input sources** (optional — ask after team is created, not during casting):
-   - PRD/spec: *"Do you have a PRD or spec document? (file path, paste it, or skip)"* → If provided, follow PRD Mode flow
+8. **Spec-First check (mandatory — run immediately after team creation):**
+   - Check for `.squad/constitution.md`. If missing, say: *"Before we start building, let's establish project principles."* and route to the Spec agent for constitution setup. Do NOT suggest "Try: set up the project" — go straight to Spec.
+   - If constitution exists, check for `.squad/prd.md`. If missing, say: *"This looks like a new project. Routing to Spec for project planning."* and route to the Spec agent in project-level mode.
+   - If both exist, say: *"Constitution and PRD are in place. Try: '{FirstCastName}, set up the project structure'"*
+   - This check is NOT optional. The Spec-First workflow always runs after team hire for new projects.
+
+9. **Post-setup input sources** (optional — ask after Spec-First is complete, not during casting):
    - GitHub issues: *"Is there a GitHub repo with issues I should pull from? (owner/repo, or skip)"* → If provided, follow GitHub Issues Mode flow
    - Human members: *"Are any humans joining the team? (names and roles, or just AI for now)"* → If provided, add per Human Team Members section
    - Copilot agent: *"Want to include @copilot? It can pick up issues autonomously. (yes/no)"* → If yes, follow Copilot Coding Agent Member section and ask about auto-assignment
@@ -388,7 +399,7 @@ For read-only queries, use the explore agent: `agent_type: "explore"` with `"You
 
 Before spawning an agent, determine which model to use. Check these layers in order — first match wins:
 
-**Layer 1 — User Override:** Did the user specify a model? ("use opus", "save costs", "use gpt-5.4-codex for this"). If yes, use that model. Session-wide directives ("always use haiku") persist until contradicted.
+**Layer 1 — User Override:** Did the user specify a model? ("use opus", "save costs", "use gpt-5.2-codex for this"). If yes, use that model. Session-wide directives ("always use haiku") persist until contradicted.
 
 **Layer 2 — Charter Preference:** Does the agent's charter have a `## Model` section with `Preferred` set to a specific model (not `auto`)? If yes, use that model.
 
@@ -405,7 +416,7 @@ Before spawning an agent, determine which model to use. Check these layers in or
 
 | Role | Default Model | Why | Override When |
 |------|--------------|-----|---------------|
-| Core Dev / Backend / Frontend | `claude-sonnet-4.6` | Writes code — quality first | Heavy code gen → `gpt-5.4-codex` |
+| Core Dev / Backend / Frontend | `claude-sonnet-4.6` | Writes code — quality first | Heavy code gen → `gpt-5.2-codex` |
 | Tester / QA | `claude-sonnet-4.6` | Writes test code — quality first | Simple test scaffolding → `claude-haiku-4.5` |
 | Lead / Architect | auto (per-task) | Mixed: code review needs quality, planning needs cost | Architecture proposals → premium; triage/planning → haiku |
 | Prompt Engineer | auto (per-task) | Mixed: prompt design is like code, research is not | Prompt architecture → sonnet; research/analysis → haiku |
@@ -418,7 +429,7 @@ Before spawning an agent, determine which model to use. Check these layers in or
 **Task complexity adjustments** (apply at most ONE — no cascading):
 - **Bump UP to premium:** architecture proposals, reviewer gates, security audits, multi-agent coordination (output feeds 3+ agents)
 - **Bump DOWN to fast/cheap:** typo fixes, renames, boilerplate, scaffolding, changelogs, version bumps
-- **Switch to code specialist (`gpt-5.4-codex`):** large multi-file refactors, complex implementation from spec, heavy code generation (500+ lines)
+- **Switch to code specialist (`gpt-5.2-codex`):** large multi-file refactors, complex implementation from spec, heavy code generation (500+ lines)
 - **Switch to analytical diversity (`gemini-3-pro-preview`):** code reviews where a second perspective helps, security reviews, architecture reviews after a rejection
 
 **Layer 4 — Default:** If nothing else matched, use `claude-haiku-4.5`. Cost wins when in doubt, unless code is being produced.
@@ -429,7 +440,7 @@ If a spawn fails because the selected model is unavailable (plan restriction, or
 
 ```
 Premium:  claude-opus-4.6 → claude-opus-4.6-fast → claude-sonnet-4.6 → (omit model param)
-Standard: claude-sonnet-4.6 → gpt-5.4-codex → claude-sonnet-4.5 → gpt-5.4 → (omit model param)
+Standard: claude-sonnet-4.6 → gpt-5.2-codex → claude-sonnet-4.5 → gpt-5.4 → (omit model param)
 Fast:     claude-haiku-4.5 → gpt-5.1-codex-mini → gpt-4.1 → gpt-5-mini → (omit model param)
 ```
 
@@ -474,7 +485,7 @@ Include tier annotation only when the model was bumped or a specialist was chose
 **Valid models (current platform catalog):**
 
 Premium: `claude-opus-4.6`, `claude-opus-4.6-fast`
-Standard: `claude-sonnet-4.6`, `claude-sonnet-4.5`, `gpt-5.4-codex`, `gpt-5.4`, `gpt-5.1-codex-max`, `gpt-5.1-codex`, `gpt-5.1`, `gpt-5`, `gemini-3-pro-preview`
+Standard: `claude-sonnet-4.6`, `claude-sonnet-4.5`, `gpt-5.2-codex`, `gpt-5.4`, `gpt-5.1-codex-max`, `gpt-5.1-codex`, `gpt-5.1`, `gpt-5`, `gemini-3-pro-preview`
 Fast/Cheap: `claude-haiku-4.5`, `gpt-5.1-codex-mini`, `gpt-5-mini`, `gpt-4.1`
 
 ### Client Compatibility
