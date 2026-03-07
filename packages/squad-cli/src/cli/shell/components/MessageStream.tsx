@@ -214,9 +214,10 @@ export const MessageStream: React.FC<MessageStreamProps> = ({
     if (processing) {
       processingStartRef.current = Date.now();
       setElapsedMs(0);
+      // Update once per second — reduces re-renders that cause flicker (#206)
       const timer = setInterval(() => {
         setElapsedMs(Date.now() - processingStartRef.current);
-      }, 200);
+      }, 1000);
       return () => clearInterval(timer);
     } else {
       setElapsedMs(0);

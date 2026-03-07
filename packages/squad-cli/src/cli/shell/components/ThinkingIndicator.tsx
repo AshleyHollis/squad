@@ -77,12 +77,12 @@ export const ThinkingIndicator: React.FC<ThinkingIndicatorProps> = ({
   const [frame, setFrame] = useState(0);
   const [phraseIndex, setPhraseIndex] = useState(0);
 
-  // Spinner animation — 80ms per frame (disabled in NO_COLOR)
+  // Spinner animation — 120ms per frame to reduce re-renders (#206)
   useEffect(() => {
     if (!isThinking || noColor) return;
     const timer = setInterval(() => {
       setFrame(f => (f + 1) % SPINNER_FRAMES.length);
-    }, 80);
+    }, 120);
     return () => clearInterval(timer);
   }, [isThinking, noColor]);
 

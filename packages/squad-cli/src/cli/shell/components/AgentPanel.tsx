@@ -21,9 +21,10 @@ const PulsingDot: React.FC = () => {
 
   useEffect(() => {
     if (noColor) return;
+    // 500ms interval reduces re-renders vs 300ms (#206)
     const timer = setInterval(() => {
       setFrame(f => (f + 1) % PULSE_FRAMES.length);
-    }, 300);
+    }, 500);
     return () => clearInterval(timer);
   }, [noColor]);
 

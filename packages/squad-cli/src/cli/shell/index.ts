@@ -1221,7 +1221,8 @@ export async function runShell(): Promise<void> {
 
   // Consult mode reminder: prompt user to extract learnings before exiting
   try {
-    const squadDir = pathResolve(process.cwd(), '.squad');
+    // Use the resolved teamRoot instead of cwd so this works from subdirectories (#207)
+    const squadDir = join(teamRoot, '.squad');
     const configPath = join(squadDir, 'config.json');
     if (existsSync(configPath)) {
       const raw = readFileSync(configPath, 'utf8');

@@ -727,3 +727,25 @@ Root cause: `TEMPLATE_MANIFEST` loop in `upgrade.ts` includes `squad.agent.md` w
 ## Learnings
 - When a file needs post-copy transformation (like `stampVersion`), it must be excluded from bulk-copy loops that would overwrite the transformation. Any manifest with `overwriteOnUpgrade: true` that includes a file handled by explicit copy+transform is a race condition.
 - The beta `index.js` doesn't use `TEMPLATE_MANIFEST` — it copies files individually with inline `stampVersion()` calls, so this bug only exists in the TypeScript CLI path.
+
+---
+
+## Phase 3 Runtime Fixes (2026-03-06)
+
+**Branch:** squad/phase3-runtime
+**Issues:** #214, #207, #206, #193
+
+Fixed 4 runtime bugs:
+
+1. **#214 node:sqlite**: Added pre-flight check in cli-entry.ts before shell launch. The @github/copilot SDK lazily imports node:sqlite for session storage — Node.js <22.5.0 crashes with opaque ERR_UNKNOWN_BUILTIN_MODULE. Now surfaces a clear warning instead.
+
+2. **#207 Squad not found from subdirectory**: Fixed nap command double-pathing (.squad/.squad) where resolveSquad() return was re-joined with '.squad'. Fixed consult mode exit check using hardcoded process.cwd() instead of resolved teamRoot.
+
+3. **#206 Terminal blink/flicker**: Reduced animation intervals — spinner 80ms→120ms, pulsing dot 300ms→500ms, elapsed timer 200ms→1000ms. Removed \x1b[3J (clear scrollback) from startup screen clear to prevent scroll position reset.
+
+4. **#193 Ceremonies file too large**: Added size threshold (15KB) to build.ts. When ceremonies.md exceeds the limit, generates a compact dispatch table + individual .squad/skills/ceremony-{name}/SKILL.md files instead of a monolithic file.
+
+## Learnings
+- The @github/copilot SDK bundles node:sqlite imports in its minified output. Cannot fix at source — pre-flight checks with clear messages are the right pattern.
+- resolveSquad() returns the .squad/ directory path itself, not the parent. Callers must not re-join with '.squad'.
+- Ink re-renders on every React state change. Multiple high-frequency animation timers compound into excessive redraws. Keep intervals ≥120ms for animations, ≥1000ms for counters.

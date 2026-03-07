@@ -215,6 +215,55 @@ function generateCeremoniesMd(ceremonies: readonly CeremonyDefinition[]): string
   return lines.join('\n');
 }
 
+/** Size threshold (bytes) above which ceremonies.md is split into dispatch table + skill files (#193). */
+const CEREMONIES_SIZE_THRESHOLD = 15_000;
+
+/**
+ * Generate a compact dispatch table that stays well under the view-tool size limit.
+ * Individual ceremony definitions live in skill files referenced by the table.
+ */
+function generateCeremoniesDispatchTable(ceremonies: readonly CeremonyDefinition[]): string {
+  const lines: string[] = [GENERATED_HEADER];
+
+  lines.push('# Ceremonies\n');
+  lines.push('Ceremony definitions live in individual skill files. This table is the dispatch index.\n');
+  lines.push('| Name | Trigger | Schedule | Participants | Skill |');
+  lines.push('|------|---------|----------|--------------|-------|');
+
+  for (const c of ceremonies) {
+    const trigger = c.trigger ?? 'manual';
+    const schedule = c.schedule ?? '—';
+    const participants = c.participants?.join(', ') ?? '—';
+    const slug = c.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    const skillPath = `.squad/skills/ceremony-${slug}/SKILL.md`;
+    lines.push(`| ${c.name} | ${trigger} | ${schedule} | ${participants} | \`${skillPath}\` |`);
+  }
+
+  lines.push('');
+  return lines.join('\n');
+}
+
+/** Generate an individual ceremony skill file. */
+function generateCeremonySkillFile(c: CeremonyDefinition): string {
+  const lines: string[] = [GENERATED_HEADER];
+
+  lines.push(`# Ceremony: ${c.name}\n`);
+  if (c.trigger) lines.push(`**Trigger:** ${c.trigger}`);
+  if (c.schedule) lines.push(`**Schedule:** ${c.schedule}`);
+  if (c.participants && c.participants.length > 0) {
+    lines.push(`**Participants:** ${c.participants.join(', ')}`);
+  }
+  if (c.hooks && c.hooks.length > 0) {
+    lines.push(`**Hooks:** ${c.hooks.join(', ')}`);
+  }
+  if (c.agenda) {
+    lines.push('', c.agenda);
+  }
+  lines.push('');
+
+  return lines.join('\n');
+}
+
 // ---------------------------------------------------------------------------
 // File plan + writing
 // ---------------------------------------------------------------------------
@@ -251,12 +300,30 @@ function buildFilePlan(config: SquadSDKConfig): GeneratedFile[] {
     });
   }
 
-  // ceremonies.md
+  // ceremonies.md — use dispatch table format when content exceeds size threshold (#193)
   if (config.ceremonies && config.ceremonies.length > 0) {
-    files.push({
-      relPath: '.squad/ceremonies.md',
-      content: generateCeremoniesMd(config.ceremonies),
-    });
+    const monolithic = generateCeremoniesMd(config.ceremonies);
+
+    if (Buffer.byteLength(monolithic, 'utf-8') > CEREMONIES_SIZE_THRESHOLD) {
+      // Large: emit dispatch table + individual skill files
+      files.push({
+        relPath: '.squad/ceremonies.md',
+        content: generateCeremoniesDispatchTable(config.ceremonies),
+      });
+      for (const c of config.ceremonies) {
+        const slug = c.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+        files.push({
+          relPath: `.squad/skills/ceremony-${slug}/SKILL.md`,
+          content: generateCeremonySkillFile(c),
+        });
+      }
+    } else {
+      // Small: single monolithic file is fine
+      files.push({
+        relPath: '.squad/ceremonies.md',
+        content: monolithic,
+      });
+    }
   }
 
   return files;

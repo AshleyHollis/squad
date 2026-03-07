@@ -21,6 +21,26 @@ import { runShell } from './cli/shell/index.js';
 // Keep VERSION in index.ts (public API); import it here via re-export
 import { VERSION } from '@bradygaster/squad-sdk';
 
+/**
+ * Pre-flight: warn if node:sqlite is unavailable (#214).
+ * The @github/copilot SDK lazily imports node:sqlite for session storage.
+ * Node.js <22.5.0 and some 22.x builds lack this builtin, causing an
+ * opaque ERR_UNKNOWN_BUILTIN_MODULE crash. Surface a clear message instead.
+ */
+async function checkNodeSqlite(): Promise<void> {
+  try {
+    await import('node:sqlite');
+  } catch {
+    const nodeVersion = process.versions.node;
+    console.warn(
+      `⚠ node:sqlite is not available in Node.js v${nodeVersion}.\n` +
+      '  The Copilot SDK uses node:sqlite for session storage.\n' +
+      '  Upgrade to Node.js ≥22.5.0 or launch with --experimental-sqlite.\n' +
+      '  Squad will attempt to continue, but session persistence may fail.\n',
+    );
+  }
+}
+
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const hasGlobal = args.includes('--global');
@@ -104,6 +124,7 @@ async function main(): Promise<void> {
 
   // No args → launch interactive shell; whitespace-only arg → show help
   if (rawCmd === undefined) {
+    await checkNodeSqlite();
     await runShell();
     return;
   }
