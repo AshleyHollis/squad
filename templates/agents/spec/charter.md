@@ -209,6 +209,27 @@ Format:
 Present roadmap for confirmation. After confirmation, auto-generate F000 spec
 and signal: "PRD COMPLETE — roadmap has {N} features. Starting F000."
 
+### Spec Status Dashboard
+
+After generating the roadmap, append a **Spec Status Table** at the bottom of `roadmap.md`. This table maps every roadmap feature to its spec status so the user can see coverage and progress at a glance.
+
+```
+## Spec Status
+
+| Feature | Milestone | Spec Directory | Status | Phase |
+|---------|-----------|----------------|--------|-------|
+| F000 Project Foundation | M0 | — (scaffolding) | N/A | — |
+| F001 {feature} | M1 | `{feature-slug}/` | ⬜ Not started | — |
+| F002 {feature} | M2 | `{feature-slug}/` | ⬜ Not started | — |
+```
+
+**Status values** (in order): `⬜ Not started` → `📋 Discovery` → `🔬 Research` → `📝 Requirements` → `🏗️ Design` → `✅ Specced` → `🚧 Implementing` → `✅ Complete`
+
+**Update rules:**
+- Update this table whenever you complete a spec phase (e.g., after finishing Discovery for a feature, change its status to `📋 Discovery`).
+- When the coordinator asks for overall project status, refresh this table from the current state of `.squad/specs/`.
+- The Phase column tracks the current spec phase (discovery, research, requirements, design, tasks, execution).
+
 ---
 
 ## Level 3: Codebase Indexing
@@ -263,6 +284,22 @@ Options:
 ## Level 4: Feature-Level Specification
 
 The core spec workflow. Produces a full spec for a single feature.
+
+### Spec Header (required on all feature spec artifacts)
+
+Every feature spec artifact (`goals.md`, `research.md`, `requirements.md`, `design.md`, `tasks.md`) MUST start with this header block:
+
+```
+# {Artifact Name}: {Feature Name}
+
+**Status**: Draft | In Progress | Implementing | Complete
+**Milestone**: M{n}
+**Spec Phase**: discovery | research | requirements | design | tasks | execution
+**Created**: {date}
+**Updated**: {date}
+```
+
+Update the `Status`, `Spec Phase`, and `Updated` fields each time you modify an artifact. This makes it possible to see the state of any spec file without reading the full document.
 
 ### Intent Classification
 
@@ -439,6 +476,47 @@ BUG_FIX → Phase 0 (Reproduce) + TDD phases.
 - Reference actual quality commands from research.md (never hardcode)
 - Link each task to requirements (FR-*, AC-*)
 
+**⚠️ CRITICAL — Checkbox task format:**
+
+Tasks MUST use **checkbox format** with task IDs, phase grouping, sub-fields, and verification checkpoints. This format is scannable, git-diffable, and shows progress at a glance.
+
+```
+## Phase 1: {Phase Name}
+
+**Goal**: {One sentence describing what this phase achieves.}
+
+- [ ] T01 [P] {Task description}
+  - **Files**: `path/to/file.py`, `path/to/other.py`
+  - **Done when**: {Concrete, testable completion condition}
+  - **Verify**: `{automated command to verify}`
+  - _Requirements: FR-001, FR-002_
+
+- [ ] T02 {Task description}
+  - **Files**: `path/to/file.py`
+  - **Done when**: {Concrete completion condition}
+  - **Verify**: `{automated command}`
+  - _Requirements: FR-003_
+
+## [VERIFY] V01 — {Phase name} checkpoint
+- [ ] Run: `{test command}`
+- [ ] Check: {What must be true}
+
+## Phase 2: {Phase Name}
+
+**Goal**: {One sentence.}
+
+- [ ] T03 {Task description}
+  ...
+```
+
+**Format rules:**
+- Task IDs are sequential across all phases: T01, T02, T03... (not restarting per phase)
+- `[P]` after the task ID means the task can run in parallel with other `[P]` tasks in the same phase
+- Every task has `Files`, `Done when`, and `Verify` sub-fields
+- `_Requirements:_` links back to FR-* and AC-* from requirements.md
+- `[VERIFY]` checkpoints (V01, V02...) appear every 2-3 tasks
+- Mark tasks `[x]` when completed during execution — this is the primary progress indicator
+
 **Target task counts**:
 | Workflow | Fine (default) | Coarse |
 |----------|---------------|--------|
@@ -446,6 +524,30 @@ BUG_FIX → Phase 0 (Reproduce) + TDD phases.
 | TDD | 30-50+ tasks | 8-15 tasks |
 
 **Output**: `tasks.md` using template at `.squad/templates/spec/tasks.md`
+
+### Phase 5b: Checklists
+
+After generating `tasks.md`, also generate a `checklists/` directory with two files:
+
+**`checklists/requirements.md`** — one checkbox per functional requirement, mapped to the task(s) that implement it:
+```
+## Requirements Checklist
+
+- [ ] FR-001: {requirement description} — T01, T02
+- [ ] FR-002: {requirement description} — T03
+- [ ] FR-003: {requirement description} — T04, T05
+```
+
+**`checklists/acceptance.md`** — one checkbox per acceptance criterion from the feature spec:
+```
+## Acceptance Criteria Checklist
+
+- [ ] AC-01: {acceptance criterion} — T01
+- [ ] AC-02: {acceptance criterion} — T03, T04
+- [ ] AC-03: {acceptance criterion} — T05
+```
+
+These checklists provide a requirements-level progress view separate from the task-level view. Update them as tasks complete during execution.
 
 ---
 
@@ -470,6 +572,9 @@ Each feature maintains state in `.squad/specs/{feature}/`:
 ```
 
 ### `.progress.md`
+
+**⚠️ CRITICAL:** Create `.progress.md` at the START of Phase 1 (Discovery), not after. This file accumulates context and prevents re-asking questions across phases and sessions. If it doesn't exist when you enter a spec directory, create it immediately with the header and intent section.
+
 Accumulates context across all phases:
 - Intent Classification (type, confidence, keywords matched)
 - Interview Responses per phase (topic-response pairs + chosen approach)
@@ -478,6 +583,26 @@ Accumulates context across all phases:
 - Errors and recovery actions
 
 This file prevents re-asking questions answered in prior phases. Every phase reads it first.
+
+**Initial `.progress.md` template** (created at Discovery start):
+```
+# Progress: {Feature Name}
+
+## Intent
+- **Type**: {GREENFIELD|TRIVIAL|REFACTOR|MID_SIZED|BUG_FIX}
+- **Confidence**: {high|medium|low}
+- **Keywords**: {matched keywords}
+
+## Phase: Discovery
+- **Started**: {date}
+- **Status**: In Progress
+
+### Interview Responses
+(filled as user answers questions)
+
+### Learnings
+(filled as context is discovered)
+```
 
 ---
 
