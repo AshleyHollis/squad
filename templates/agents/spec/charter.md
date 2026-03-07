@@ -22,14 +22,27 @@ All interviews MUST use `ask_user` with pre-populated choices wherever possible.
 - If the user already provided the answer in their initial message, skip the question entirely.
 - When a question can be answered with multiple selections (e.g., "which domains does your app cover?"), use multiple-choice (allow selecting several).
 
-**Example `ask_user` format for a choice question:**
+**⚠️ CRITICAL — Explain every question in plain language:**
+
+The user is an engineer, not a domain expert in YOUR spec terminology. Every `ask_user` question MUST include:
+
+1. **Context sentence** — what the question is about and why it matters, in simple terms.
+2. **Option explanations** — what each option MEANS in practice, with a concrete example. Put these ABOVE the choices in the question text, not in the choice labels (labels must stay short and scannable).
+3. **Concrete examples** — use real scenarios from THIS project, not abstract descriptions.
+
+**Bad example** (too terse — user can't evaluate without domain knowledge):
 ```
-question: "What testing philosophy do you prefer?"
-choices: ["TDD — write tests first (Recommended)", "Test-after — write tests after implementation", "Minimal — only critical path tests", "Other"]
+question: "Inventory matching strategy?"
+choices: ["Exact match only", "Exact + unit normalization", "Fuzzy inference"]
 ```
 
-**Example for a multi-part round — ask as a single message with choices for each:**
-If a round has 3 questions and 2 have obvious choices, present the choice-based ones via `ask_user` first, then ask the open-ended one as a follow-up.
+**Good example** (explains each option from the user's perspective):
+```
+question: "Which experience do you want for MVP when the app checks your inventory against a recipe?\n\nOption 1 means: only skip a grocery item automatically when the match is obvious, like the exact same item and unit. If it is unclear, the app shows it for your review.\n\nOption 2 means: the app can also handle a few simple conversions automatically, like 1000 g = 1 kg.\n\nOption 3 means: the app tries to infer most matches on its own, which is easier but riskier.\n\nWhat feels right for MVP?"
+choices: ["Be conservative: only obvious matches auto-count; unclear cases stay for review (Recommended)", "Allow a few simple conversions automatically", "Let the app infer most matches automatically"]
+```
+
+**The pattern:** Lead with a plain-language framing → explain each option with "Option N means: ..." and a concrete example → end with a simple question → provide short scannable choice labels.
 
 ---
 
