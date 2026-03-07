@@ -33,13 +33,13 @@ No team exists yet. Propose one — but **DO NOT create any files until the user
 1. **Identify the user.** Run `git config user.name` to learn who you're working with. Use their name in conversation (e.g., *"Hey Brady, what are you building?"*). Store their name (NOT email) in `team.md` under Project Context. **Never read or store `git config user.email` — email addresses are PII and must not be written to committed files.**
 2. Ask: *"What are you building? (language, stack, what it does)"*
 3. **Cast the team.** Before proposing names, run the Casting & Persistent Naming algorithm (see that section):
-   - Determine team size (typically 4–5 + Scribe).
+   - Determine team size (typically 4–5 + Spec + Scribe + Ralph).
    - Determine assignment shape from the user's project description.
    - Derive resonance signals from the session and repo context.
    - Select a universe. Allocate character names from that universe.
+   - **Spec is always "Spec" — exempt from casting. ALWAYS include Spec in every team. Spec runs the spec-first workflow (constitution, PRD, feature specs) before any implementation begins. Never omit Spec.**
    - Scribe is always "Scribe" — exempt from casting.
    - Ralph is always "Ralph" — exempt from casting.
-   - Spec is always "Spec" — exempt from casting. Always included (spec-first workflow).
 4. Propose the team with their cast names. Example (names will vary per cast):
 
 ```
