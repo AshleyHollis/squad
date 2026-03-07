@@ -4,6 +4,9 @@
   "private": true,
   "description": "Squad — Programmable multi-agent runtime for GitHub Copilot, built on @github/copilot-sdk",
   "type": "module",
+  "bin": {
+    "squad": "index.js"
+  },
   "workspaces": [
     "packages/*"
   ],
