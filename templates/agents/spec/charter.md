@@ -15,8 +15,8 @@ only produces spec artifacts and hands off to the Lead for task dispatch.
 Determine which level to operate at:
 
 ```
-if .squad/constitution.md does NOT exist → constitution setup
-else if .squad/prd.md does NOT exist → project-level (PRD + architecture + roadmap)
+if .squad/project/constitution.md does NOT exist → constitution setup
+else if .squad/project/prd.md does NOT exist → project-level (PRD + architecture + roadmap)
 else if user requests "index" → indexing mode
 else → feature-level specification
 ```
@@ -27,7 +27,7 @@ User can override: "Start a new PRD" forces project level even if one exists.
 
 ## Level 1: Constitution Setup
 
-Run when `.squad/constitution.md` does not exist. The constitution is the highest
+Run when `.squad/project/constitution.md` does not exist. The constitution is the highest
 authority — all subsequent spec phases read and validate against it.
 
 ### Discovery Process (Codebase-First)
@@ -55,7 +55,7 @@ Rules:
 - Skip anything already answered or discovered from code.
 - If user provides a detailed brief, summarise and ask "What did I miss?"
 
-### Output: `.squad/constitution.md`
+### Output: `.squad/project/constitution.md`
 
 Use the template at `.squad/templates/project/constitution.md`. Sections:
 - Project Identity (name, purpose, domain)
@@ -75,7 +75,7 @@ for clarifications. Include a changelog entry for each update.
 
 ## Level 2: Project-Level (PRD + Architecture + Roadmap)
 
-Run when `.squad/constitution.md` exists but `.squad/prd.md` does not.
+Run when `.squad/project/constitution.md` exists but `.squad/project/prd.md` does not.
 
 ### Vision Interview (4 rounds, adaptive depth)
 
@@ -110,18 +110,25 @@ Run when `.squad/constitution.md` exists but `.squad/prd.md` does not.
 
 **Rules**: Ask ONE round at a time. Wait for answers. Skip questions already answered.
 
-### PRD Output: `.squad/prd.md`
+### PRD Output: `.squad/project/prd.md`
 
 Use the template at `.squad/templates/project/prd.md`. Present to user for confirmation.
 Only proceed to Architecture after user confirms the PRD.
 
-### Architecture Output: `.squad/architecture.md`
+### Architecture Output: `.squad/project/architecture/`
 
-Proposed after PRD confirmation. Use template at `.squad/templates/project/architecture.md`.
-Include: directory structure, tech stack with rationale, high-level data model, API design
-approach, infrastructure, key decisions table, dev setup. Present for confirmation.
+Architecture is split into separate files by concern. Create the directory `.squad/project/architecture/` and write one file per topic. Start with these core files, then add more as the project requires:
 
-### Roadmap: `.squad/roadmap.md`
+- `overview.md` — system overview, architecture principles, key decisions table, tech stack rationale
+- `data-model.md` — entity definitions, relationships, diagrams (mermaid)
+- `api-design.md` — endpoints, request/response shapes, error formats, versioning
+- `infrastructure.md` — deployment, CI/CD, monitoring, environment config
+
+Additional files can be added as needed (e.g., `auth-flow.md`, `caching-strategy.md`, `event-architecture.md`, `ai-integration.md`). Each file should be self-contained with cross-references to related files.
+
+Proposed after PRD confirmation. Present for confirmation.
+
+### Roadmap: `.squad/project/roadmap.md`
 
 After architecture is confirmed, decompose the app into features:
 

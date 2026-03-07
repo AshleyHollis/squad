@@ -1669,6 +1669,36 @@ try {
   fatal(`Failed to create ${squadInfo.name}/ directories: ${err.message}`);
 }
 
+// Pre-create project directory for project-level docs (constitution, PRD, architecture, roadmap)
+const projectDir = path.join(squadInfo.path, 'project');
+const archDir = path.join(projectDir, 'architecture');
+try {
+  fs.mkdirSync(projectDir, { recursive: true });
+  fs.mkdirSync(archDir, { recursive: true });
+} catch (err) {
+  fatal(`Failed to create ${squadInfo.name}/project/ directories: ${err.message}`);
+}
+
+// Migration: move root-level project docs into .squad/project/ (upgrade only)
+if (isUpgrade) {
+  const migrateFiles = ['constitution.md', 'prd.md', 'roadmap.md'];
+  for (const file of migrateFiles) {
+    const oldPath = path.join(squadInfo.path, file);
+    const newPath = path.join(projectDir, file);
+    if (fs.existsSync(oldPath) && !fs.existsSync(newPath)) {
+      fs.renameSync(oldPath, newPath);
+      console.log(`${GREEN}✓${RESET} ${BOLD}migrated${RESET} ${squadInfo.name}/${file} → ${squadInfo.name}/project/${file}`);
+    }
+  }
+  // Migrate architecture.md → project/architecture/overview.md
+  const oldArch = path.join(squadInfo.path, 'architecture.md');
+  const newArch = path.join(archDir, 'overview.md');
+  if (fs.existsSync(oldArch) && !fs.existsSync(newArch)) {
+    fs.renameSync(oldArch, newArch);
+    console.log(`${GREEN}✓${RESET} ${BOLD}migrated${RESET} ${squadInfo.name}/architecture.md → ${squadInfo.name}/project/architecture/overview.md`);
+  }
+}
+
 // Copy starter skills
 const skillsSrc = path.join(root, 'templates', 'skills');
 if (fs.existsSync(skillsSrc)) {

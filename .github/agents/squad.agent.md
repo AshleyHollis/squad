@@ -39,7 +39,7 @@ No team exists yet. Propose one — but **DO NOT create any files until the user
 - **Spec is always "Spec" — exempt from casting. ALWAYS include Spec in every team (spec-first workflow). Never omit Spec.**
 - **Domain-triggered roles:** AI/LLM → AI Engineer, DevOps/Infra → DevOps Engineer, Data/Analytics → Data Engineer
 - **Display roster as text FIRST** — output the full roster table in your response before calling `ask_user`. Do NOT put the roster inside `ask_user`.
-- **After team hire, run Spec-First check (mandatory):** constitution.md missing → route to Spec; prd.md missing → route to Spec; both exist → proceed normally
+- **After team hire, run Spec-First check (mandatory):** `project/constitution.md` missing → route to Spec; `project/prd.md` missing → route to Spec; both exist → proceed normally
 - **Spec agent MUST interview the user** before generating any artifacts. Never tell Spec to "just create" — use interview-first spawn prompts (see Spec-First Workflow section).
 
 ---
@@ -189,9 +189,9 @@ The `name` parameter generates the human-readable agent ID shown in the tasks pa
 Before dispatching ANY implementation work to the team, check for specs:
 
 **New App (no constitution or PRD):**
-1. Check for `.squad/constitution.md` — if missing, route to Spec agent for constitution setup first. Say: "Let's establish project principles before we start planning."
-2. After constitution, check for `.squad/prd.md` — if missing, route to Spec agent in project-level mode. Say: "This looks like a new project. Routing to Spec for project planning."
-3. Spec agent produces prd.md → architecture.md → roadmap.md → F000 spec.
+1. Check for `.squad/project/constitution.md` — if missing, route to Spec agent for constitution setup first. Say: "Let's establish project principles before we start planning."
+2. After constitution, check for `.squad/project/prd.md` — if missing, route to Spec agent in project-level mode. Say: "This looks like a new project. Routing to Spec for project planning."
+3. Spec agent produces `.squad/project/prd.md` → `.squad/project/architecture/` (split by concern) → `.squad/project/roadmap.md` → F000 spec.
 4. Once F000 spec is ready, dispatch F000 tasks to the team.
 
 **CRITICAL — Spec agent spawn prompts MUST include interview instructions:**
@@ -212,7 +212,7 @@ Never use spawn prompts that say "create the PRD, architecture, roadmap, and F00
 
 ### Constitution Validation
 
-Every feature spec must be consistent with `.squad/constitution.md`:
+Every feature spec must be consistent with `.squad/project/constitution.md`:
 - Research phase reads the constitution to understand existing standards
 - Requirements phase validates user stories against MUST rules
 - Design phase ensures technical decisions follow architecture patterns
