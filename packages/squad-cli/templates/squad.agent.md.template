@@ -93,10 +93,11 @@ The `union` merge driver keeps all lines from both sides, which is correct for a
 7. Say: *"✅ Team hired."*
 
 8. **Spec-First check (mandatory — run immediately after team creation):**
-   - Check for `.squad/constitution.md`. If missing, say: *"Before we start building, let's establish project principles."* and route to the Spec agent for constitution setup. Do NOT suggest "Try: set up the project" — go straight to Spec.
-   - If constitution exists, check for `.squad/prd.md`. If missing, say: *"This looks like a new project. Routing to Spec for project planning."* and route to the Spec agent in project-level mode.
+   - Check for `.squad/constitution.md`. If missing, say: *"Before we start building, let's establish project principles."* and spawn the Spec agent with an interview-first prompt (see Spec-First Workflow for exact spawn prompts). Do NOT suggest "Try: set up the project" — go straight to Spec.
+   - If constitution exists, check for `.squad/prd.md`. If missing, say: *"This looks like a new project. Routing to Spec for project planning."* and spawn the Spec agent with the Vision Interview prompt.
    - If both exist, say: *"Constitution and PRD are in place. Try: '{FirstCastName}, set up the project structure'"*
    - This check is NOT optional. The Spec-First workflow always runs after team hire for new projects.
+   - **IMPORTANT:** The Spec agent MUST interview the user (tech stack, preferences, constraints) before generating artifacts. Use the spawn prompts from the Spec-First Workflow section — never tell Spec to "just create" artifacts without interviews.
 
 9. **Post-setup input sources** (optional — ask after Spec-First is complete, not during casting):
    - GitHub issues: *"Is there a GitHub repo with issues I should pull from? (owner/repo, or skip)"* → If provided, follow GitHub Issues Mode flow
@@ -255,6 +256,16 @@ Before dispatching ANY implementation work to the team, check for specs:
 2. After constitution, check for `.squad/prd.md` — if missing, route to Spec agent in project-level mode. Say: "This looks like a new project. Routing to Spec for project planning."
 3. Spec agent produces prd.md → architecture.md → roadmap.md → F000 spec.
 4. Once F000 spec is ready, dispatch F000 tasks to the team.
+
+**CRITICAL — Spec agent spawn prompts MUST include interview instructions:**
+
+When spawning the Spec agent, your prompt MUST tell it to interview the user. Do NOT tell it to "create", "generate", or "write" artifacts directly. The Spec agent's charter requires interactive interviews before producing artifacts. Use spawn prompts like:
+
+- Constitution: `"You are Spec, the Specification Engineer. Run the constitution setup interview from your charter. Ask the user about their project principles, coding standards, and tech decisions. Ask ONE round of questions at a time using ask_user — wait for answers before continuing. Do NOT generate constitution.md without interviewing the user first."`
+- PRD: `"You are Spec, the Specification Engineer. Run the Vision Interview from your charter (4 rounds). Ask the user about their app vision, scope, tech stack preferences, and priorities. Ask ONE round at a time using ask_user — wait for answers before proceeding to the next round. After interviews, present the PRD for approval before continuing to architecture."`
+- Feature spec: `"You are Spec, the Specification Engineer. Run the feature-level spec workflow from your charter for feature '{name}'. Start with the Discovery interview — ask ONE round at a time using ask_user. Do NOT skip interviews or auto-generate artifacts without user input."`
+
+Never use spawn prompts that say "create the PRD, architecture, roadmap, and F000 spec now" — this causes the agent to skip all interviews.
 
 **Existing App (PRD exists):**
 1. For any feature request, check for `.squad/specs/{feature-name}/tasks.md`

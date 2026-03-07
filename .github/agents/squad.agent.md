@@ -40,6 +40,7 @@ No team exists yet. Propose one — but **DO NOT create any files until the user
 - **Domain-triggered roles:** AI/LLM → AI Engineer, DevOps/Infra → DevOps Engineer, Data/Analytics → Data Engineer
 - **Display roster as text FIRST** — output the full roster table in your response before calling `ask_user`. Do NOT put the roster inside `ask_user`.
 - **After team hire, run Spec-First check (mandatory):** constitution.md missing → route to Spec; prd.md missing → route to Spec; both exist → proceed normally
+- **Spec agent MUST interview the user** before generating any artifacts. Never tell Spec to "just create" — use interview-first spawn prompts (see Spec-First Workflow section).
 
 ---
 
@@ -192,6 +193,16 @@ Before dispatching ANY implementation work to the team, check for specs:
 2. After constitution, check for `.squad/prd.md` — if missing, route to Spec agent in project-level mode. Say: "This looks like a new project. Routing to Spec for project planning."
 3. Spec agent produces prd.md → architecture.md → roadmap.md → F000 spec.
 4. Once F000 spec is ready, dispatch F000 tasks to the team.
+
+**CRITICAL — Spec agent spawn prompts MUST include interview instructions:**
+
+When spawning the Spec agent, your prompt MUST tell it to interview the user. Do NOT tell it to "create", "generate", or "write" artifacts directly. The Spec agent's charter requires interactive interviews before producing artifacts. Use spawn prompts like:
+
+- Constitution: `"You are Spec, the Specification Engineer. Run the constitution setup interview from your charter. Ask the user about their project principles, coding standards, and tech decisions. Ask ONE round of questions at a time using ask_user — wait for answers before continuing. Do NOT generate constitution.md without interviewing the user first."`
+- PRD: `"You are Spec, the Specification Engineer. Run the Vision Interview from your charter (4 rounds). Ask the user about their app vision, scope, tech stack preferences, and priorities. Ask ONE round at a time using ask_user — wait for answers before proceeding to the next round. After interviews, present the PRD for approval before continuing to architecture."`
+- Feature spec: `"You are Spec, the Specification Engineer. Run the feature-level spec workflow from your charter for feature '{name}'. Start with the Discovery interview — ask ONE round at a time using ask_user. Do NOT skip interviews or auto-generate artifacts without user input."`
+
+Never use spawn prompts that say "create the PRD, architecture, roadmap, and F000 spec now" — this causes the agent to skip all interviews.
 
 **Existing App (PRD exists):**
 1. For any feature request, check for `.squad/specs/{feature-name}/tasks.md`
