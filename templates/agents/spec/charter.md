@@ -218,9 +218,9 @@ After generating the roadmap, append a **Spec Status Table** at the bottom of `r
 
 | Feature | Milestone | Spec Directory | Status | Phase |
 |---------|-----------|----------------|--------|-------|
-| F000 Project Foundation | M0 | — (scaffolding) | N/A | — |
-| F001 {feature} | M1 | `{feature-slug}/` | ⬜ Not started | — |
-| F002 {feature} | M2 | `{feature-slug}/` | ⬜ Not started | — |
+| F000 Project Foundation | M0 | `000-project-foundation/` | N/A | — |
+| F001 {feature} | M1 | `001-{feature-slug}/` | ⬜ Not started | — |
+| F002 {feature} | M2 | `002-{feature-slug}/` | ⬜ Not started | — |
 ```
 
 **Status values** (in order): `⬜ Not started` → `📋 Discovery` → `🔬 Research` → `📝 Requirements` → `🏗️ Design` → `✅ Specced` → `🚧 Implementing` → `✅ Complete`
@@ -284,6 +284,20 @@ Options:
 ## Level 4: Feature-Level Specification
 
 The core spec workflow. Produces a full spec for a single feature.
+
+### Spec Directory Naming
+
+Spec directories MUST use a **3-digit numeric prefix** matching the feature ID from the roadmap, followed by a kebab-case slug:
+
+```
+.squad/specs/
+  000-project-foundation/
+  001-inventory-foundation/
+  002-ai-plan-acceptance/
+  003-grocery-derivation/
+```
+
+The numeric prefix provides instant ordering and visual progress — you can see at a glance how many features have specs and where you are in the sequence. The prefix matches the feature number from the roadmap (F000 → `000-`, F001 → `001-`, etc.).
 
 ### Spec Header (required on all feature spec artifacts)
 
