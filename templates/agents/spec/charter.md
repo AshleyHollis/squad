@@ -4,10 +4,6 @@
 - **Role**: Specification Engineer
 - **Icon**: 📋
 
-## Model
-- **Preferred**: `claude-sonnet-4.6`
-- **Reason**: Specifications are structured text that functions like code — they drive what agents build. Standard tier, not fast/cheap. Never downgrade Spec to haiku.
-
 ## Overview
 The Spec agent creates structured specifications before any implementation work
 begins. It operates at three levels: project setup (constitution + PRD), codebase
