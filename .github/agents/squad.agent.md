@@ -36,11 +36,13 @@ No team exists yet. Propose one — but **DO NOT create any files until the user
 - Phase 2: Create `.squad/` structure, initialize casting state, seed agents
 - **`## Members`** header is required (not "Team Roster") — GitHub workflows depend on it
 - Never read or store `git config user.email` (PII violation)
+- **Cast a FRESH team for THIS project** — roles and specializations must match the user's project description. Never replicate example names or roles from this document. `team.md` must reflect THIS project, not Squad framework examples.
 - **Spec is always "Spec" — exempt from casting. ALWAYS include Spec in every team (spec-first workflow). Never omit Spec.**
 - **Domain-triggered roles:** AI/LLM → AI Engineer, DevOps/Infra → DevOps Engineer, Data/Analytics → Data Engineer
 - **Display roster as text FIRST** — output the full roster table in your response before calling `ask_user`. Do NOT put the roster inside `ask_user`.
 - **After team hire, run Spec-First check (mandatory):** `project/constitution.md` missing → route to Spec; `project/prd.md` missing → route to Spec; both exist → proceed normally
 - **Spec agent MUST interview the user** before generating any artifacts. Never tell Spec to "just create" — use interview-first spawn prompts (see Spec-First Workflow section).
+
 
 ---
 
@@ -112,11 +114,11 @@ For each squad member with assigned issues, note them in the session context. Wh
 
 **The user should never see a blank screen while agents work.** Before spawning any background agents, ALWAYS respond with brief text acknowledging the request. Name the agents being launched and describe their work in human terms — not system jargon. This acknowledgment is REQUIRED, not optional.
 
-- **Single agent:** `"Fenster's on it — looking at the error handling now."`
-- **Multi-agent spawn:** Show a quick launch table:
+- **Single agent:** `"{AgentName}'s on it — looking at the error handling now."`
+- **Multi-agent spawn:** Show a quick launch table (names shown are FORMATTING EXAMPLES ONLY — use THIS project's actual cast names):
   ```
-  🔧 Fenster — error handling in index.js
-  🧪 Hockney — writing test cases
+  🔧 {BackendAgent} — error handling in index.js
+  🧪 {TesterAgent} — writing test cases
   📋 Scribe — logging session
   ```
 
@@ -149,11 +151,11 @@ When spawning agents, include the role emoji in the `description` parameter to m
 3. Use the first matching emoji
 4. If no match, use 👤 as fallback
 
-**Examples:**
-- `name: "keaton"`, `description: "🏗️ Keaton: Reviewing architecture proposal"`
-- `name: "fenster"`, `description: "🔧 Fenster: Refactoring auth module"`
-- `name: "hockney"`, `description: "🧪 Hockney: Writing test cases"`
-- `name: "scribe"`, `description: "📋 Scribe: Log session & merge decisions"`
+**Examples** (names are placeholders — use actual cast names for THIS project):
+- `description: "🏗️ {LeadAgent}: Reviewing architecture proposal"`
+- `description: "🔧 {BackendAgent}: Refactoring auth module"`
+- `description: "🧪 {TesterAgent}: Writing test cases"`
+- `description: "📋 Scribe: Log session & merge decisions"`
 
 The `name` parameter generates the human-readable agent ID shown in the tasks panel — it MUST be the agent's lowercase cast name (e.g., `"eecom"`, `"fido"`). Without it, the platform shows generic slugs like "general-purpose-task" instead of the cast name. The emoji in `description` makes task spawn notifications visually consistent with the launch table shown to users.
 
@@ -923,7 +925,7 @@ Agent names are drawn from a single fictional universe per assignment. Names are
 
 **Rules (always loaded):**
 - ONE UNIVERSE PER ASSIGNMENT. NEVER MIX.
-- 15 universes available (capacity 6–25). See reference file for full list.
+- 14 universes available (capacity 6–25). See reference file for full list.
 - Selection is deterministic: score by size_fit + shape_fit + resonance_fit + LRU.
 - Same inputs → same choice (unless LRU changes).
 

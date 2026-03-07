@@ -1,52 +1,67 @@
 # Casting Reference
 
-On-demand reference for Squad's casting system. Loaded during Init Mode or when adding team members.
+On-demand reference for the Casting & Persistent Naming system. Only loaded during Init Mode or when adding new team members.
+
+**⚠️ IMPORTANT:** This reference defines HOW to cast names. It does NOT define the team composition. The team roles and specializations MUST be derived from the USER'S project description — never from examples in the coordinator or this document.
 
 ## Universe Table
 
-| Universe | Capacity | Shape Tags | Resonance Signals |
-|---|---|---|---|
-| The Usual Suspects | 6 | small, noir, ensemble | crime, heist, mystery, deception |
-| Reservoir Dogs | 8 | small, noir, ensemble | crime, heist, tension, loyalty |
-| Alien | 8 | small, sci-fi, survival | space, isolation, threat, engineering |
-| Ocean's Eleven | 14 | medium, heist, ensemble | planning, coordination, roles, charm |
-| Arrested Development | 15 | medium, comedy, ensemble | dysfunction, business, family, satire |
-| Star Wars | 12 | medium, sci-fi, epic | conflict, mentorship, legacy, rebellion |
-| The Matrix | 10 | medium, sci-fi, cyberpunk | systems, reality, hacking, philosophy |
-| Firefly | 10 | medium, sci-fi, western | frontier, crew, independence, smuggling |
-| The Goonies | 8 | small, adventure, ensemble | exploration, treasure, kids, teamwork |
-| The Simpsons | 20 | large, comedy, ensemble | satire, community, family, absurdity |
-| Breaking Bad | 12 | medium, drama, tension | chemistry, transformation, consequence, power |
-| Lost | 18 | large, mystery, ensemble | survival, mystery, groups, leadership |
-| Marvel Cinematic Universe | 25 | large, action, ensemble | heroism, teamwork, powers, scale |
-| DC Universe | 18 | large, action, ensemble | justice, duality, powers, mythology |
-| Futurama | 12 | medium, sci-fi, comedy | future, robots, space, absurdity |
+Each universe has a capacity (max agents). ONE universe per assignment. NEVER mix.
 
-**Total: 15 universes** — capacity range 6–25.
+| Universe | Capacity | Shape / Tone |
+|----------|----------|--------------|
+| The Usual Suspects | 6 | Heist, ensemble crime, pressure-cooker |
+| Reservoir Dogs | 8 | Heist, color-coded, terse |
+| Alien | 8 | Sci-fi survival, crew under pressure |
+| Ocean's Eleven | 14 | Heist, specialty roles, teamwork |
+| Arrested Development | 15 | Ensemble comedy, dysfunctional family |
+| Star Wars | 12 | Sci-fi epic, light/dark, heroes |
+| The Matrix | 10 | Sci-fi cyberpunk, hacker crew |
+| Firefly | 10 | Sci-fi western, scrappy crew |
+| The Goonies | 8 | Adventure, underdogs, friendship |
+| The Simpsons | 20 | Ensemble comedy, community |
+| Breaking Bad | 12 | Drama, high-stakes chemistry |
+| Lost | 18 | Mystery ensemble, survival |
+| Marvel Cinematic Universe | 25 | Superhero ensemble, large teams |
+| DC Universe | 18 | Superhero ensemble, diverse powers |
 
 ## Selection Algorithm
 
-Universe selection is deterministic. Score each universe and pick the highest:
+Score each universe and pick the highest score. Same inputs → same choice (unless LRU changes).
 
-```
-score = size_fit + shape_fit + resonance_fit + LRU
-```
+### Scoring (0–10 each)
 
-| Factor | Description |
-|---|---|
-| `size_fit` | How well the universe capacity matches the team size. Prefer universes where capacity ≥ agent_count with minimal waste. |
-| `shape_fit` | Match universe shape tags against the assignment shape derived from the project description. |
-| `resonance_fit` | Match universe resonance signals against session and repo context signals. |
-| `LRU` | Least-recently-used bonus — prefer universes not used in recent assignments (from `history.json`). |
+1. **size_fit** — Does the universe capacity fit the team size?
+   - `capacity >= agent_count + 2` (headroom for growth) → 10
+   - `capacity >= agent_count` (exact fit) → 7
+   - `capacity < agent_count` → 0 (disqualified)
 
-Same inputs → same choice (unless LRU changes between assignments).
+2. **shape_fit** — Does the universe tone match the project shape?
+   - Small focused team (3–5) → heist/crew universes score higher (Usual Suspects, Alien, Reservoir Dogs)
+   - Medium team (6–10) → ensemble universes (Ocean's, Firefly, Matrix, Breaking Bad)
+   - Large team (11+) → large-cast universes (Simpsons, Lost, MCU, DC, Arrested Development)
+
+3. **resonance_fit** — Does the universe resonate with the project domain?
+   - Tech/hacker project → Matrix, Firefly
+   - Creative/design project → Arrested Development, Simpsons
+   - Data/analytics → Breaking Bad
+   - Enterprise/large-scale → Ocean's, MCU
+   - This is subjective — use judgment. Any universe can work for any project.
+
+4. **LRU** (Least Recently Used) — Has this universe been used recently in `.squad/casting/history.json`?
+   - Never used → +3 bonus
+   - Used but long ago → +1 bonus
+   - Recently used → 0
+
+### Final Score
+
+`total = size_fit + shape_fit + resonance_fit + LRU`
+
+Pick the highest-scoring universe. On ties, prefer the one with more capacity headroom.
 
 ## Casting State File Schemas
 
 ### policy.json
-
-Source template: `.squad/templates/casting-policy.json`
-Runtime location: `.squad/casting/policy.json`
 
 ```json
 {
@@ -58,18 +73,18 @@ Runtime location: `.squad/casting/policy.json`
 }
 ```
 
-### registry.json
+- `allowlist_universes`: Array of allowed universe names
+- `universe_capacity`: Map of universe → max agent count
 
-Source template: `.squad/templates/casting-registry.json`
-Runtime location: `.squad/casting/registry.json`
+### registry.json
 
 ```json
 {
   "agents": {
-    "agent-role-id": {
-      "persistent_name": "CharacterName",
+    "agentname": {
+      "created_at": "2026-01-01T00:00:00Z",
+      "persistent_name": "AgentName",
       "universe": "Universe Name",
-      "created_at": "ISO-8601",
       "legacy_named": false,
       "status": "active"
     }
@@ -77,28 +92,33 @@ Runtime location: `.squad/casting/registry.json`
 }
 ```
 
-### history.json
+- `persistent_name`: Display name (title case)
+- `universe`: Which universe this name comes from
+- `legacy_named`: `true` if agent existed before casting was initialized (migration)
+- `status`: `"active"` or `"retired"` — retired names remain reserved, never reused
 
-Source template: `.squad/templates/casting-history.json`
-Runtime location: `.squad/casting/history.json`
+### history.json
 
 ```json
 {
+  "assignment_cast_snapshots": {
+    "project-init-YYYY-MM-DD": {
+      "created_at": "2026-01-01T00:00:00Z",
+      "agents": ["Name1", "Name2"],
+      "universe": "Universe Name"
+    }
+  },
   "universe_usage_history": [
     {
+      "assignment_id": "project-init-YYYY-MM-DD",
+      "assigned_at": "2026-01-01T00:00:00Z",
       "universe": "Universe Name",
-      "assignment_id": "unique-id",
-      "used_at": "ISO-8601"
+      "agent_count": 5
     }
-  ],
-  "assignment_cast_snapshots": {
-    "assignment-id": {
-      "universe": "Universe Name",
-      "agents": {
-        "role-id": "CharacterName"
-      },
-      "created_at": "ISO-8601"
-    }
-  }
+  ]
 }
 ```
+
+- `assignment_cast_snapshots`: Keyed by unique assignment ID. Records which agents were cast and from which universe.
+- `universe_usage_history`: Append-only log of universe selections for LRU scoring.
+- The `assignment_id` should reflect the PROJECT name (not "squad-sdk"), e.g., `"meal-planner-init-2026-03-07"`.
