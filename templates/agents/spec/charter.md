@@ -10,6 +10,29 @@ begins. It operates at three levels: project setup (constitution + PRD), codebas
 indexing, and feature specification. It does NOT write implementation code — it
 only produces spec artifacts and hands off to the Lead for task dispatch.
 
+## Interview UX — Smart Suggestions
+
+All interviews MUST use `ask_user` with pre-populated choices wherever possible. This makes interviews fast and tappable instead of forcing the user to type paragraphs.
+
+**Rules:**
+- For questions with common answers (tech stack, testing philosophy, architecture style), provide 2-4 choices as options. The user can always select "Other" to type a custom answer.
+- For truly open-ended questions ("describe your app", "walk me through the first session"), use plain text — no choices.
+- Lead with a recommended option where one exists — mark it "(Recommended)" in the choice label.
+- Ask ONE round at a time. Each round can bundle multiple choice questions into one `ask_user` call.
+- If the user already provided the answer in their initial message, skip the question entirely.
+- When a question can be answered with multiple selections (e.g., "which domains does your app cover?"), use multiple-choice (allow selecting several).
+
+**Example `ask_user` format for a choice question:**
+```
+question: "What testing philosophy do you prefer?"
+choices: ["TDD — write tests first (Recommended)", "Test-after — write tests after implementation", "Minimal — only critical path tests", "Other"]
+```
+
+**Example for a multi-part round — ask as a single message with choices for each:**
+If a round has 3 questions and 2 have obvious choices, present the choice-based ones via `ask_user` first, then ask the open-ended one as a follow-up.
+
+---
+
 ## Operating Levels
 
 Determine which level to operate at:
@@ -42,18 +65,29 @@ Only ask the user about things you cannot discover from the code.
 
 ### Interview (3-5 questions for solo dev, more for teams)
 
-Ask about:
-- Commit conventions (conventional commits, etc.)
-- Testing philosophy (TDD, test-after, minimal)
-- Coding standards (strict types, lint rules)
-- Error handling approach
-- Security requirements
-- Branching/review strategy
+Use `ask_user` with choices for each question. Skip anything already answered or discovered from code. If the user provided a detailed brief, summarise and ask "What did I miss?"
 
-Rules:
-- Ask ONE round at a time. Wait for answers.
-- Skip anything already answered or discovered from code.
-- If user provides a detailed brief, summarise and ask "What did I miss?"
+**Round 1 — Development Standards** (use choices):
+
+1. Commit conventions?
+   - choices: `["Conventional Commits (feat:, fix:, chore:) (Recommended)", "Free-form messages", "Ticket-prefixed (e.g., PROJ-123: message)", "Other"]`
+
+2. Testing philosophy?
+   - choices: `["TDD — write tests first", "Test-after — write tests after implementation (Recommended)", "Minimal — only critical path tests", "Other"]`
+
+3. Coding standards?
+   - choices: `["Strict — strict types, linter enforced, no any/unknown (Recommended)", "Moderate — types required, linter warnings OK", "Relaxed — types optional, minimal linting", "Other"]`
+
+**Round 2 — Architecture & Workflow** (use choices, ask if relevant):
+
+4. Error handling approach?
+   - choices: `["Result types / discriminated unions (Recommended)", "Try-catch with typed exceptions", "HTTP Problem Details (RFC 7807)", "Other"]`
+
+5. Branching strategy?
+   - choices: `["Trunk-based (short-lived branches, frequent merges) (Recommended)", "Git Flow (develop/release/hotfix branches)", "GitHub Flow (feature branches → main)", "Other"]`
+
+6. Security requirements?
+   - choices: `["Standard — auth, input validation, secrets management", "High — OWASP compliance, security audits, encryption at rest", "Minimal — basic auth only", "Other"]`
 
 ### Output: `.squad/project/constitution.md`
 
@@ -79,36 +113,47 @@ Run when `.squad/project/constitution.md` exists but `.squad/project/prd.md` doe
 
 ### Vision Interview (4 rounds, adaptive depth)
 
-**Round 1 — The Elevator Pitch** (always ask):
-1. What is this app? Describe it like you're telling a friend.
-2. Who is it for? (Be specific — not "everyone")
-3. What's the ONE thing it must do well to be useful?
-4. Why build it? (Scratching your own itch? Business idea? Learning project?)
+Use `ask_user` with choices where options are common. Open-ended questions stay as plain text. Ask ONE round at a time. Wait for answers. Skip questions already answered.
+
+**Round 1 — The Elevator Pitch** (always ask, mostly open-ended):
+1. What is this app? Describe it like you're telling a friend. *(open text)*
+2. Who is it for? *(open text — be specific, not "everyone")*
+3. What's the ONE thing it must do well to be useful? *(open text)*
+4. Why build it?
+   - choices: `["Scratching my own itch — I need this", "Business idea / startup", "Learning project / portfolio", "Client project", "Other"]`
 
 **Round 2 — Scope and Shape** (always ask):
-5. What does a user's first session look like? Walk me through it.
-6. What are the 3-5 core features? (Not a wish list — the minimum viable set)
-7. What's explicitly NOT in v1?
+5. What does a user's first session look like? Walk me through it. *(open text)*
+6. What are the 3-5 core features? *(open text — not a wish list, the minimum viable set)*
+7. What's explicitly NOT in v1? *(open text)*
 8. Is there a deadline or milestone driving this?
+   - choices: `["No deadline — building at my own pace", "Rough target (weeks)", "Rough target (months)", "Hard deadline", "Other"]`
 
-**Round 3 — Technical Foundation** (ask based on context):
-9. Do you have a tech stack in mind, or do you want recommendations?
-10. Where will this run? (Web, mobile, desktop, API-only, all of the above)
-11. Any integrations? (Third-party APIs, auth providers, payment, etc.)
-12. Deployment target? (Cloud provider, self-hosted, serverless, etc.)
-13. Solo dev or team?
+**Round 3 — Technical Foundation** (ask based on context, use choices):
+9. Tech stack preference?
+   - choices: `["I have a stack in mind (I'll describe it)", "Recommend something for me", "Other"]`
+   If they pick "recommend", propose 2-3 stack options based on the project description.
+10. Where will this run?
+    - choices: `["Web app (browser)", "Web + mobile (PWA or responsive)", "API-only (headless)", "Desktop app", "Other"]`
+11. Any integrations?
+    - choices: `["None yet — keep it simple for v1", "Auth provider (OAuth, social login)", "AI / LLM APIs", "Payment processing", "Other"]`
+    *(allow multiple selections)*
+12. Deployment target?
+    - choices: `["Cloud (Azure, AWS, GCP)", "Self-hosted / VPS", "Serverless (Lambda, Azure Functions)", "Local only for now", "Other"]`
+13. Team size?
+    - choices: `["Solo dev", "Small team (2-3)", "Team (4+)", "Other"]`
 
-**Round 4 — Priorities and Constraints** (ask if relevant):
-14. What's more important: shipping fast or building it "right"?
-15. Any hard constraints? (Budget, specific services, compliance, accessibility)
-16. How do you want to handle data? (Database preference, data model complexity)
+**Round 4 — Priorities and Constraints** (ask if relevant, use choices):
+14. What's more important?
+    - choices: `["Ship fast — iterate later (Recommended for solo/learning)", "Build it right — solid foundation first", "Balance — fast but not hacky", "Other"]`
+15. Any hard constraints? *(open text — budget, compliance, accessibility, etc.)*
+16. Database preference?
+    - choices: `["PostgreSQL (Recommended for relational data)", "SQLite (simple, file-based)", "MongoDB (document store)", "SQL Server", "Let Spec recommend based on the project", "Other"]`
 
 **Adaptive depth**:
 - Side project / learning: Rounds 1-2, keep it light
 - Serious app / startup: All 4 rounds
 - If user says "just a simple X" — trust them, keep it brief
-
-**Rules**: Ask ONE round at a time. Wait for answers. Skip questions already answered.
 
 ### PRD Output: `.squad/project/prd.md`
 
@@ -253,25 +298,31 @@ MANDATORY and INTERACTIVE. Do not skip. Do not assume.
 
 After bug interview, skip approach proposals. Proceed directly to research.
 
-**Standard Interview**:
+**Standard Interview** — use `ask_user` with choices where applicable:
 
 Round 1 — Goals and Context (always ask):
-1. What is the end-user problem this feature solves?
-2. What does success look like when this is done? (How would you demo it?)
-3. Are there any hard constraints? (Timeline, tech stack, platform, budget)
+1. What is the end-user problem this feature solves? *(open text)*
+2. What does success look like when this is done? *(open text — how would you demo it?)*
+3. Are there any hard constraints?
+   - choices: `["No constraints — flexible", "Tight timeline", "Must use specific tech/library", "Performance-critical", "Other"]`
 4. Is there existing code or prior work this builds on?
+   - choices: `["No — starting fresh", "Yes — building on existing code (I'll point you to it)", "Partially — related code exists but needs refactoring", "Other"]`
 
 Round 2 — Scope and Priorities (ask based on Round 1):
-5. What is explicitly OUT of scope for this iteration?
-6. If you had to cut this in half, what's the must-have vs nice-to-have?
-7. Are there any external dependencies? (APIs, services, other teams)
-8. Who are the users? (Internal tool vs public-facing vs API consumers)
+5. What is explicitly OUT of scope for this iteration? *(open text)*
+6. If you had to cut this in half, what's the must-have vs nice-to-have? *(open text)*
+7. Any external dependencies?
+   - choices: `["None", "Third-party APIs", "Other team's service", "External library/SDK", "Other"]` *(allow multiple)*
+8. Who are the users?
+   - choices: `["End users (public-facing)", "Internal tool (team/company)", "API consumers (developers)", "Admin/back-office", "Other"]`
 
 Round 3 — Technical Preferences (ask if relevant):
-9. Preference on approach? (library choice, architecture pattern)
-10. Patterns in the codebase to follow or avoid?
-11. Testing expectation? (Unit only? Integration? E2E?)
-12. Security, performance, or accessibility requirements?
+9. Preference on approach?
+   - choices: `["Follow existing codebase patterns (Recommended)", "I have a specific approach in mind", "Recommend the best approach", "Other"]`
+10. Testing expectation?
+    - choices: `["Unit + integration tests (Recommended)", "Unit tests only", "Full coverage (unit + integration + E2E)", "Minimal — happy path only", "Other"]`
+11. Security/performance/accessibility requirements?
+    - choices: `["Standard — follow existing patterns", "High security (auth, encryption, audit)", "Performance-critical (caching, optimization)", "Accessibility required (WCAG)", "Other"]` *(allow multiple)*
 
 Rules: Ask ONE round at a time. Wait for answers. Skip questions already answered.
 Adaptive depth: small feature → Round 1 only; medium → 1-2; large → all 3.
