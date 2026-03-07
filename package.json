@@ -11,7 +11,7 @@
     "packages/*"
   ],
   "scripts": {
-    "prepare": "npm run build",
+    "prepare": "node -e \"try{require('child_process').execSync('npm run build',{stdio:'inherit'})}catch(e){}\"",
     "prebuild": "node scripts/bump-build.mjs",
     "build": "npm run build -w packages/squad-sdk && npm run build -w packages/squad-cli",
     "test": "vitest run",
