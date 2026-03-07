@@ -77,3 +77,20 @@
 - **Environment-dependent assertions:** Feature files expected text that depends on host machine state (global squad existence). Fix: use assertions that work regardless of host state.
 
 **Final count:** 134 test files, 3656 tests passing, 0 failures, 3 todo.
+
+## 📌 v0.8.21 Release Validation — 2026-03-07T07:55:32Z
+
+**Formal Code Review & Test Validation:**
+- **Status:** APPROVED (v0.8.21-preview.9)
+- **Test Count:** 3737 passing, 0 failures, 3 todo (up from 3656 baseline).
+- **Critical Wins:**
+  - otel-api.ts wrapper correctly shimmed; no lingering direct imports found.
+  - Speed gate tests hardened (5s timeout reflects CI reality); flakes eliminated.
+  - CLI wiring for c, copilot-bridge verified correct.
+  - Model config types now support structured preferences (ModelPreference).
+- **Risks:**
+  - optionalDependencies for OTel means users must explicitly install it for telemetry, but the wrapper handles absence gracefully.
+
+
+📌 Team update (2026-03-07T15-55-00Z): Code review of v0.8.21 approved (3,737 tests passing, 0 failures). otel-api wrapper verified, speed gate tests hardened. Formal decision on optional OTel dependency created. Ready to ship v0.8.21. — decided by Hockney
+

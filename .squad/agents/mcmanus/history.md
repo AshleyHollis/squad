@@ -28,6 +28,94 @@
 
 ## Learnings
 
+### 2026-03-11: v0.8.21 Comprehensive Release Blog & CHANGELOG
+
+**Status:** Complete. Created comprehensive "What's New in v0.8.21" blog post and updated CHANGELOG.md to reflect full release scope.
+
+**Work completed:**
+
+1. **Created `docs/blog/025-v0821-comprehensive-release.md`** (15.8 KB):
+   - **Hero statement:** Positioned as MAJOR release combining SDK-First, 26 closed issues, 16 merged PRs, critical fixes, and platform stabilization
+   - **Section 1 — SDK-First Mode:** Full overview with 8 builders, `squad build` command, quick start code example, remote squad mode context
+   - **Section 2 — Remote Squad Mode:** New commands (`squad rc`, `squad init-remote`, `squad rc-tunnel`), dual-root resolver, key concepts
+   - **Section 3 — Critical Bug Fixes (7 issues fixed):**
+     - Installation crash (#247) — OTel dependency hard fail → resilient wrapper with no-op fallbacks
+     - CLI command wiring (#244) — 4 commands (rc, copilot-bridge, init-remote, rc-tunnel) now connected
+     - Model config round-trip (#245) — AgentDefinition.model accepts string | ModelPreference
+     - ExperimentalWarning suppression — process.emit override in cli-entry.ts
+     - Blankspace fix (#239) — Conditional height constraint removes idle UI clutter
+     - Windows EBUSY race condition — fs.rm with exponential backoff retry
+     - Regression fix wave (#221) — 25 test regressions resolved
+   - **Section 4 — CI Stabilization:** PRs #232, #228 GitHub Actions pipeline fixed
+   - **Section 5 — Community Contributions:** PR #199 (migration), PR #243 (blankspace), credited by PR number
+   - **By the Numbers table:** 26 issues, 16 PRs, 3,724 passing tests, 8 builders, 4 commands wired, 1 critical crash fix, full metrics breakdown
+   - **Technical Details subsection:** SDK mode detection, telemetry resilience architecture (otel-api.ts wrapper), remote squad path resolution
+   - **Documentation Updates:** Lists new guides and changes
+   - **Testing & Stability:** Test coverage breakdown (36 builder tests, 24 build tests, 29 round-trip tests, 25 regression fixes, Windows EBUSY tests)
+   - **What We Learned (4 insights):** Type safety is UX, optional dependencies unlock resilience, Windows needs dedicated testing, protected files criticality
+   - **What's Coming Next:** v0.8.22 roadmap (#249, #250, #251), Phase 2 (live reload), Phase 3 (OTel integration), beyond
+   - **Upgrade Path:** Clear instructions for v0.8.20 → v0.8.21, fresh install crash fix benefit, SDK-First migration optional
+   - **Community Credits:** Core team + Shayne Boyer, community contributors by PR
+   - **Getting Started (3 options):** Markdown (no changes), SDK-First (new), Azure Function sample
+   - **Important Fixes callout:** Lists 7 fixes users may have experienced
+
+2. **Updated `CHANGELOG.md`:**
+   - Changed [Unreleased] section → [0.8.21] - 2026-03-11 (dated to release day)
+   - **Added section:** "### Fixed — Critical Crash & Stability Issues" (9 items)
+     - Each fix linked to issue number (#247, #244, #245, #239, #221, #232, #228)
+     - Installation crash description with root cause and solution
+     - CLI command wiring explanation
+     - Model config round-trip detail
+     - Windows hardening notes
+     - Regression and CI fixes
+   - **Kept sections:** Added, Remote Squad Mode, Changed (Distribution & Versioning), Community, By the Numbers
+   - **Created new [Unreleased] section** at end for next release cycle
+   - CHANGELOG now serves as condensed version of blog post (bullets, no prose)
+
+3. **Tone & messaging decisions:**
+   - **No hype:** "Major release combining..." instead of "Revolutionary breakthrough"
+   - **Substantiated claims:** All issue numbers referenced, metrics verified from task description, all fixes explained with root cause
+   - **Practical value:** Installation crash fix emphasizes "fresh installs now work reliably", model config "survives round-trip cycles intact", Windows "dedicated testing" not just "fixed"
+   - **Complete scope:** Blog covers ALL deliverables from Brady's manifest (SDK-First, Remote Squad, 26 issues, 16 PRs, 3,724 tests, 0 logic failures)
+   - **Community visibility:** PR numbers credited, Shayne Boyer acknowledged for remote mode design
+   - **Developer-focused:** "Getting Started" offers 3 clear paths (stay markdown, try SDK-First, explore Azure sample)
+
+4. **Structural consistency:**
+   - Mirrors existing blog posts (v0.4.0, v0.8.21-sdk-first): hero statement, "What Shipped", by-numbers metrics, learnings, roadmap, upgrade path, community credits
+   - YAML frontmatter: title, date (2026-03-11), author (McManus), wave (7), tags, status (published), hero statement
+   - Code examples: defineSquad quick start, squad build commands, otel-api.ts pattern, curl example
+   - Links: All internal docs, sample projects, issue references
+
+5. **Completeness verification against manifest:**
+   - ✅ SDK-First Mode (8 builders, squad build command, detection)
+   - ✅ Remote Squad Mode (dual-root resolver, squad rc, squad init-remote, squad rc-tunnel)
+   - ✅ Installation crash fix (#247) with technical explanation
+   - ✅ CLI command wiring (#244)
+   - ✅ Model config round-trip (#245)
+   - ✅ ExperimentalWarning suppression
+   - ✅ Blankspace fix (#239)
+   - ✅ Test hardening (Windows EBUSY, speed gate)
+   - ✅ Regression fixes (#221 — 25 tests)
+   - ✅ CI stabilization (#232, #228)
+   - ✅ Community contributions (PR #199, PR #243)
+   - ✅ By the numbers (26 issues, 16 PRs, 3,724 tests)
+   - ✅ Version (0.8.21-preview.9)
+   - ✅ Roadmap teasers (v0.8.22, Phase 2/3)
+
+**Key messaging decisions:**
+- Installation crash as headline fix (solves immediate user pain point)
+- SDK-First positioned as opt-in (not breaking, not required)
+- Remote Squad Mode as team collaboration feature (cross-machine squads)
+- Technical details on telemetry resilience (explains why OTel no longer blocks)
+- Roadmap concrete but non-committal (Phase 2/3 unscheduled, #249-#251 for v0.8.22)
+
+**Impact:**
+- v0.8.21 release has full narrative (not just SDK features, but major stability improvements)
+- Installation crash fix positioned as critical for production readiness
+- Blog serves as source of truth for external communication
+- CHANGELOG condensed version enables quick scanning of what changed
+- Developers understand full value: SDK-First choice + crash elimination + test stability
+
 ### 2026-03-10: v0.8.21 Release Blog Post
 
 **Status:** Complete. Created release blog post at `docs/blog/024-v0821-sdk-first-release.md`.
@@ -1202,3 +1290,6 @@ Multi-agent build of Rock-Paper-Scissors game with 10 AI strategies, Docker infr
 📌 Team update (2026-03-04T17:52:00Z): Migration docs file-safety guidance added — doctor command now live in CLI (fixes #188) — decided by Keaton, implemented by McManus
 
 📌 Team update (2026-03-05T22-10-00Z): SDK-First Mode documentation published (3-tier strategy). Documented all 8 builders, CLI flags, config discovery. Tone ceiling maintained. — decided by McManus
+
+📌 Team update (2026-03-07T15-55-00Z): v0.8.21 blog strategy finalized: two-post approach (SDK-First deep dive + comprehensive release wave). Blog post 025 published (336 lines), CHANGELOG updated with [0.8.21] section. Decision on blog scope and audience segmentation created. Ready for release communication. — decided by McManus
+

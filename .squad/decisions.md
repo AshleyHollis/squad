@@ -3868,3 +3868,95 @@ When releasing, move "Unreleased" to versioned section:
 - **Architecture:** SDK/CLI split is clean. Distribution to npm is working. Type safety (strict: true) enforced across both packages.
 - **Proposal workflow:** Working as designed. No surprises.
 
+
+
+# Decision: Optionalize OpenTelemetry Dependency
+
+## Context
+Telemetry is valuable but should not be a hard requirement for running the SDK. Users in air-gapped environments or minimal setups experienced crashes when `@opentelemetry/api` was missing or incompatible.
+
+## Decision
+We have wrapped `@opentelemetry/api` in a resilient shim (`packages/squad-sdk/src/runtime/otel-api.ts`) and moved the package to `optionalDependencies`.
+
+### Mechanics
+- **Runtime detection:** The wrapper attempts to load `@opentelemetry/api`.
+- **Graceful fallback:** If loading fails, it exports no-op implementations of `trace`, `metrics`, and `diag` that match the API surface used by Squad.
+- **Developer experience:** Internal code imports from `./runtime/otel-api.ts` instead of the package directly.
+
+## Consequences
+- **Positive:** SDK is robust against missing telemetry dependencies. Installation size is smaller for users who opt out.
+- **Negative:** We must maintain the wrapper's type compatibility with the real API.
+- **Risk:** If we use new OTel features, we must update the no-op implementation.
+
+## Status
+Accepted and implemented in v0.8.21.
+
+
+# Decision: v0.8.21 Blog Post Scope — SDK-First + Full Release Wave
+
+**Date:** 2026-03-11  
+**Author:** McManus (DevRel)  
+**Impact:** External communication, developer discovery, release narrative
+
+## Problem
+
+v0.8.21 is a major release with TWO significant storylines:
+1. **SDK-First Mode** — TypeScript-first authoring, type safety, `squad build` command
+2. **Stability Wave** — 26 issues closed, 16 PRs merged, critical crash fix (#247), 3,724 passing tests
+
+Risk: If blog only emphasizes SDK-First, users miss critical stability improvements (crash fix, Windows hardening, test reliability). If blog buries SDK-First, flagship feature loses visibility.
+
+## Decision
+
+Create TWO complementary blog posts with clear ownership:
+
+1. **`024-v0821-sdk-first-release.md`** (existing) — SDK-First deep dive
+   - Target: TypeScript-focused teams, SDK adopters
+   - Scope: Builders, quick start, Azure Function sample, Phase 2/3 roadmap
+   - Tone: Educational, patterns-focused
+
+2. **`025-v0821-comprehensive-release.md`** (new) — Full release wave summary
+   - Target: General audience, release notes consumers
+   - Scope: All 7 feature areas (SDK-First + Remote Squad + 5 critical fixes), metrics, community credits
+   - Tone: Reassuring (crash fixed!), factual (26 issues, 0 logic failures)
+
+**Cross-linking strategy:**
+- Comprehensive post links to SDK-First deep dive: "For detailed SDK patterns, see [v0.8.21: SDK-First Mode post](./024-v0821-sdk-first-release.md)"
+- SDK-First post references comprehensive post: "For the full release notes, see [v0.8.21: The Complete Release post](./025-v0821-comprehensive-release.md)"
+
+**CHANGELOG updated once** at `[0.8.21]` section with full scope (all 7 areas) — serves as single source of truth for condensed release info.
+
+## Rationale
+
+- **SDK value**: Highlights TypeScript-first workflow, type safety, Azure serverless patterns
+- **Stability value**: Installation crash fix alone justifies a major release (user pain elimination)
+- **Audience segmentation**: Developers interested in SDK config patterns → read post #024; DevOps/team leads reading release notes → read post #025
+- **SEO/discovery**: Two articles = more surface area for search + internal linking
+- **Archive preservation**: Both posts preserved in `docs/blog/` for historical record
+
+## Alternative Rejected
+
+**Single mega-post:** Would be 25+ KB, overwhelming, diffuses message (SDK patterns + crash fix + CI stability = scattered narrative). Two posts with clear focus are easier to scan and share.
+
+## Enforcement
+
+- CHANGELOG.md single `[0.8.21]` section (source of truth)
+- Blog post #025 designated "comprehensive" (headline for external comms)
+- Blog post #024 designated "technical deep dive" (for SDK adopters)
+- Release announcement on GitHub uses post #025 as primary link
+
+---
+
+**Decided by:** McManus (DevRel) on behalf of tone ceiling + messaging coherence  
+**Reviewed by:** Internal tone ceiling check (substantiated claims, no hype, clear value messaging)
+
+
+### 2026-03-07 07:51 UTC: SDK-First init/migrate deferred to v0.8.22
+**By:** Keaton (Coordinator), Brady absent - autonomous decision
+**What:** SDK-First mode gaps (init --sdk flag, standalone migrate command, comprehensive docs) deferred to v0.8.22.
+**Why:** v0.8.21 has all P0 blockers resolved. Adding features now risks regression. Filed #249, #250, #251.
+**Issues filed:**
+- #249: squad init --sdk flag for SDK-First mode opt-in
+- #250: standalone squad migrate command (subsumes #231)
+- #251: comprehensive SDK-First mode documentation
+
