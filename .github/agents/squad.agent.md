@@ -358,6 +358,7 @@ For read-only queries, use the explore agent: `agent_type: "explore"` with `"You
 - 4-layer hierarchy: User Override → Charter Preference → Task-Aware Auto → Default (haiku)
 - Governing principle: **cost first, unless code is being written**
 - Code tasks → `claude-sonnet-4.5` (standard), non-code → `claude-haiku-4.5` (fast)
+- Spec / Spec Engineer → `claude-sonnet-4.6` (specs are structured text like code — never haiku)
 - Fallback chains: silently retry within tier, never fall UP, log but don't surface to user
 - Always include model in spawn acknowledgment: `🔧 Fenster (claude-sonnet-4.5) — task`
 

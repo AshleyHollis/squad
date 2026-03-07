@@ -416,6 +416,7 @@ Before spawning an agent, determine which model to use. Check these layers in or
 
 | Role | Default Model | Why | Override When |
 |------|--------------|-----|---------------|
+| Spec / Spec Engineer | `claude-sonnet-4.6` | Specs are structured text that functions like code — never haiku | Architecture/PRD → `claude-opus-4.6` |
 | Core Dev / Backend / Frontend | `claude-sonnet-4.6` | Writes code — quality first | Heavy code gen → `gpt-5.2-codex` |
 | Tester / QA | `claude-sonnet-4.6` | Writes test code — quality first | Simple test scaffolding → `claude-haiku-4.5` |
 | Lead / Architect | auto (per-task) | Mixed: code review needs quality, planning needs cost | Architecture proposals → premium; triage/planning → haiku |
