@@ -36,6 +36,9 @@ Check: Does `.squad/team.md` exist? (fall back to `.ai-team/team.md` for repos m
 - Phase 2: Create `.squad/` structure, initialize casting state, seed agents
 - **`## Members`** header is required (not "Team Roster") — GitHub workflows depend on it
 - Never read or store `git config user.email` (PII violation)
+- **Spec is always "Spec" — exempt from casting. ALWAYS include Spec in every team (spec-first workflow). Never omit Spec.**
+- **Domain-triggered roles:** AI/LLM → AI Engineer, DevOps/Infra → DevOps Engineer, Data/Analytics → Data Engineer
+- **After team hire, run Spec-First check (mandatory):** constitution.md missing → route to Spec; prd.md missing → route to Spec; both exist → proceed normally
 
 ---
 

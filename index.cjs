@@ -1535,12 +1535,23 @@ try {
   fatal(`Failed to create ${squadInfo.name}/ directories: ${err.message}`);
 }
 
-// Copy starter skills (skip if any skills already exist)
-if (!isUpgrade) {
-  const skillsSrc = path.join(root, 'templates', 'skills');
-  if (fs.existsSync(skillsSrc) && fs.readdirSync(skillsDir).length === 0) {
+// Copy starter skills
+const skillsSrc = path.join(root, 'templates', 'skills');
+if (fs.existsSync(skillsSrc)) {
+  if (!isUpgrade && fs.readdirSync(skillsDir).length === 0) {
+    // Fresh init: copy all starter skills
     copyRecursive(skillsSrc, skillsDir);
     console.log(`${GREEN}✓${RESET} ${squadInfo.name}/skills/ (starter skills)`);
+  } else if (isUpgrade) {
+    // Upgrade: add new skills that don't exist yet (additive-only, never overwrites)
+    for (const entry of fs.readdirSync(skillsSrc)) {
+      const srcSkill = path.join(skillsSrc, entry);
+      const destSkill = path.join(skillsDir, entry);
+      if (fs.statSync(srcSkill).isDirectory() && !fs.existsSync(destSkill)) {
+        copyRecursive(srcSkill, destSkill);
+        console.log(`${GREEN}✓${RESET} ${squadInfo.name}/skills/${entry}/ (new skill)`);
+      }
+    }
   }
 }
 
