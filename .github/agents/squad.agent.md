@@ -232,6 +232,32 @@ Default: auto-merge ON.
 Override: user says "don't auto-merge" → stop, wait for manual merge.
 Skip auto-merge if: CI fails, or constitution MUST rule was flagged.
 
+### Status Command
+
+When the user asks for project status ("status", "how's the project?", "project progress"), use **Direct** response mode (no agent spawn). The coordinator reads state files and displays a structured summary.
+
+**Steps:**
+1. Scan `.squad/specs/` — read each `state.json` to get phase, task counts, milestone
+2. Read `.squad/project/roadmap.md` — get feature-to-milestone mapping
+3. Rebuild `.squad/project/status.json` with current state (recompute `summary` counts)
+4. Display a formatted summary table:
+
+```
+📊 Project Status: {project-name}
+
+| Feature | Milestone | Phase | Tasks | Status |
+|---------|-----------|-------|-------|--------|
+| F001 Inventory Foundation | M1 | complete | 12/12 | ✅ |
+| F002 AI Plan Acceptance | M2 | complete | 15/15 | ✅ |
+| F003 Grocery Derivation | M3 | execution | 8/18 | 🚧 44% |
+| F004 Offline Sync | M4 | tasks | 0/20 | ✅ Specced |
+| F005 MVP Hardening | M5 | — | — | ⬜ |
+
+Summary: 2 complete, 1 implementing (44%), 1 specced, 1 not started
+```
+
+**If `state.json` files don't exist** (older projects): fall back to reading spec directory contents (check for tasks.md, feature-spec.md) and roadmap status emojis. Create the missing `state.json` files from what you discover.
+
 ### Continuous Mode (Default)
 
 After a feature completes (build done, PR merged), automatically:
@@ -261,12 +287,30 @@ When reading tasks.md:
 - Tasks with dependencies → hold until dependencies complete
 - [VERIFY] tasks route to Tester agent
 - Route other tasks to agent specified in task's Agent column
-- Track completion in .squad/specs/{feature}/progress.md
+- Track completion in `.squad/specs/{feature}/progress.md` and `state.json`
 
 Verification layers before advancing each task:
 1. Contradiction detection — reject if "requires manual" + "complete"
 2. Completion signal — agent must explicitly signal done
 3. Artifact review — every 5th task, phase boundaries, final task
+
+### Task State Update Protocol
+
+State files MUST be updated at every task transition. This enables external monitoring tools to track progress in real time.
+
+**Before dispatching a task:**
+1. Update `.squad/specs/{feature}/state.json`: set `taskIndex` to the task number being dispatched, `currentAgent` to the agent name, `updatedAt` to current ISO timestamp.
+2. Include in the agent spawn prompt: *"After completing your work, mark the task `[x]` in tasks.md."*
+
+**After confirming task completion (include in Scribe spawn manifest):**
+1. Verify the task is marked `[x]` in `tasks.md` — if the agent didn't mark it, mark it now.
+2. Update `.squad/specs/{feature}/state.json`: increment `completedTasks`, advance `taskIndex`, set `currentAgent=null`, update `updatedAt`.
+3. Append a row to `.squad/specs/{feature}/.progress.md` under the `## Task Log` table:
+   ```
+   | T{nn} | {1-line summary} | {agent} | {ISO timestamp} | ✅ |
+   ```
+4. Update `.squad/project/status.json`: refresh the feature's `completedTasks` count and `updatedAt`.
+5. If this was the **last task**: set `state.json` `phase="complete"`, update `status.json` feature phase to `"complete"`, recompute `summary` counts.
 
 ### Routing
 
@@ -285,6 +329,7 @@ The routing table determines **WHO** handles work. After routing, use Response M
 | PRD intake ("here's the PRD", "read the PRD at X", pastes spec) | Follow PRD Mode (see that section) |
 | Human member management ("add Brady as PM", routes to human) | Follow Human Team Members (see that section) |
 | Ralph commands ("Ralph, go", "keep working", "Ralph, status", "Ralph, idle") | Follow Ralph — Work Monitor (see that section) |
+| "Status" / "How's the project?" / "Project progress" | Rebuild `status.json`, display formatted summary (see Status Command) |
 | "Skip spec" or trivially small task | Dispatch directly, bypass Spec agent |
 | General work request | Check routing.md, spawn best match + any anticipatory agents |
 | Quick factual question | Answer directly (no spawn) |
