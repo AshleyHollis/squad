@@ -327,7 +327,7 @@ Before asking interview questions, classify the user's goal:
 | GREENFIELD | new feature, add, build, implement, create, from scratch | 5-10 questions |
 | MID_SIZED | (default if no clear match) | 3-7 questions |
 
-Store intent in `.squad/specs/{feature}/.progress.md`. Intent determines the
+Store intent in `.squad/specs/{feature}/.progress.md` and `.squad/specs/{feature}/state.json`. Intent determines the
 execution workflow (POC-first for GREENFIELD, TDD for everything else).
 
 ### Codebase-First Principle
@@ -569,21 +569,39 @@ These checklists provide a requirements-level progress view separate from the ta
 
 Each feature maintains state in `.squad/specs/{feature}/`:
 
-### `.ralph-state.json`
+### `state.json`
+
+Machine-readable state file for each feature. This is the primary file that external monitoring tools consume.
+
 ```json
 {
-  "featureName": "{feature}",
-  "phase": "discovery|research|requirements|design|tasks|execution",
+  "featureName": "Inventory Foundation",
+  "featureId": "F001",
+  "phase": "discovery|research|requirements|design|tasks|execution|complete",
   "intent": "GREENFIELD|TRIVIAL|REFACTOR|MID_SIZED|BUG_FIX",
   "workflow": "poc|tdd|bug-tdd",
+  "milestone": "M1",
   "taskIndex": 0,
   "totalTasks": 0,
-  "taskIteration": 1,
-  "maxTaskIterations": 5,
+  "completedTasks": 0,
+  "currentAgent": null,
   "awaitingApproval": false,
-  "relatedSpecs": []
+  "updatedAt": "2026-03-08T12:00:00Z"
 }
 ```
+
+**⚠️ CRITICAL — Write triggers for `state.json`:**
+
+This file MUST be created and updated at every state transition. If `state.json` doesn't exist when you enter a spec directory, create it immediately.
+
+| Trigger | Fields to update |
+|---------|-----------------|
+| Spec agent enters a feature directory for the first time | CREATE `state.json` with featureName, featureId, phase="discovery", intent, workflow, milestone |
+| Spec agent completes a phase (discovery→research, etc.) | Update `phase`, `updatedAt` |
+| Spec agent generates tasks.md | Update `phase="tasks"`, `totalTasks` (count of T* items), `completedTasks=0` |
+| Coordinator dispatches a task | Update `taskIndex`, `currentAgent`, `updatedAt` |
+| Coordinator confirms task completion | Increment `completedTasks`, advance `taskIndex`, clear `currentAgent`, update `updatedAt` |
+| Feature implementation complete | Update `phase="complete"`, `completedTasks=totalTasks`, `updatedAt` |
 
 ### `.progress.md`
 
@@ -616,7 +634,61 @@ This file prevents re-asking questions answered in prior phases. Every phase rea
 
 ### Learnings
 (filled as context is discovered)
+
+## Task Log
+
+| Task | Summary | Agent | Completed | Verify |
+|------|---------|-------|-----------|--------|
 ```
+
+The Task Log table is populated during execution. Each row is appended by the coordinator (via Scribe) when a task completes. This structured format is parseable by monitoring tools.
+
+---
+
+## Project Status File
+
+The Spec agent MUST create and maintain `.squad/project/status.json`. This file aggregates status across all features so external monitoring tools can display project progress without parsing markdown.
+
+**Create this file** when generating the first roadmap. Update it whenever:
+- A spec phase completes (Spec agent updates the feature's `phase`)
+- A task completes (coordinator updates via Scribe — see coordinator's Task State Update Protocol)
+- A feature completes (coordinator updates feature status to `"complete"`)
+
+```json
+{
+  "projectName": "{app-name}",
+  "updatedAt": "2026-03-08T12:00:00Z",
+  "summary": {
+    "totalFeatures": 7,
+    "specComplete": 6,
+    "implementing": 1,
+    "complete": 3,
+    "notStarted": 1
+  },
+  "milestones": [
+    {
+      "id": "M1",
+      "name": "Household + Inventory",
+      "status": "complete",
+      "features": ["F001"]
+    }
+  ],
+  "features": [
+    {
+      "id": "F001",
+      "name": "Inventory Foundation",
+      "milestone": "M1",
+      "specDir": "001-inventory-foundation",
+      "phase": "complete",
+      "totalTasks": 12,
+      "completedTasks": 12,
+      "updatedAt": "2026-03-08T10:00:00Z"
+    }
+  ]
+}
+```
+
+When updating `status.json`, also recompute the `summary` counts from the `features` array.
 
 ---
 
