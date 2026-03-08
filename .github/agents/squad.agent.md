@@ -175,9 +175,13 @@ The `name` parameter generates the human-readable agent ID shown in the tasks pa
 
 **When you detect a directive:**
 
-1. Write it immediately to `.squad/decisions/inbox/copilot-directive-{timestamp}.md` using this format:
+1. Create the file using the helper script:
    ```
-   ### {timestamp}: User directive
+   pwsh .squad/templates/new-file.ps1 -Dir "decisions/inbox" -Slug "copilot-directive-{brief-slug}"
+   ```
+   Then write this content to the returned file path:
+   ```
+   ### User directive
    **By:** {user name} (via Copilot)
    **What:** {the directive, verbatim or lightly paraphrased}
    **Why:** User request — captured for team memory
@@ -425,7 +429,9 @@ prompt: |
   TARGET FILE(S): {exact file path(s)}
 
   Do the work. Keep it focused.
-  If you made a meaningful decision, write to .squad/decisions/inbox/{name}-{brief-slug}.md
+  If you made a meaningful decision, create the file with:
+  pwsh .squad/templates/new-file.ps1 -Dir "decisions/inbox" -Slug "{name}-{brief-slug}"
+  Then write your decision to the returned path. NEVER write to .squad/log/.
 
   ⚠️ OUTPUT: Report outcomes in human terms. Never expose tool internals or SQL.
   ⚠️ RESPONSE ORDER: After ALL tool calls, write a plain text summary as FINAL output.
@@ -604,6 +610,28 @@ To enable full parallelism, shared writes use a drop-box pattern that eliminates
 **history.md** — No change. Each agent writes only to its own `history.md` (already conflict-free).
 
 **log/** — No change. Already per-session files.
+
+### Directory Purpose (what goes where)
+
+| Directory | Purpose | Who writes | Naming |
+|-----------|---------|------------|--------|
+| `log/` | Session summaries (brief, what happened) | Scribe ONLY | `{timestamp}-{topic}.md` |
+| `orchestration-log/` | Per-agent spawn records (who ran, why, outcome) | Scribe ONLY | `{timestamp}-{agent}.md` |
+| `decisions/inbox/` | Agent decisions awaiting merge into decisions.md | Any agent | `{timestamp}-{agent}-{slug}.md` |
+| `decisions.md` | Canonical merged decisions (shared brain) | Scribe ONLY (merge) | N/A (single file) |
+| `agents/{name}/history.md` | Personal learnings for one agent | Owning agent + Scribe | N/A (single file) |
+
+**⚠️ CRITICAL — Timestamp generation:**
+NEVER construct timestamps manually — LLMs generate inaccurate timestamps. Always use the helper script:
+```
+pwsh .squad/templates/new-file.ps1 -Dir "{directory}" -Slug "{slug}"
+```
+This ensures consistent, accurate UTC timestamps on all files.
+
+**Rules:**
+- Agents NEVER write directly to `log/` or `orchestration-log/` — only Scribe does.
+- Decisions, assessments, and governance documents go to `decisions/inbox/`, NOT `log/`.
+- If an agent writes a file with options, recommendations, or "Decision:" headers, it's a decision — route to `decisions/inbox/`.
 
 ### Worktree Awareness
 
@@ -813,12 +841,17 @@ prompt: |
   
   AFTER work:
   1. APPEND to .squad/agents/{name}/history.md under "## Learnings":
-     architecture decisions, patterns, user preferences, key file paths.
-  2. If you made a team-relevant decision, write to:
-     .squad/decisions/inbox/{name}-{brief-slug}.md
+     architecture decisions, reusable patterns, key file paths, API behaviors, team conventions.
+     ⚠️ DO NOT record: requester names, branch names, session metadata, or one-time task context.
+     History is for knowledge that will be useful in FUTURE sessions, not session attribution.
+  2. If you made a team-relevant decision, use the helper script to create the file:
+     pwsh .squad/templates/new-file.ps1 -Dir "decisions/inbox" -Slug "{name}-{brief-slug}"
+     Then write your decision content to the returned file path.
+     ⚠️ NEVER write to .squad/log/ — only Scribe writes session logs there.
+     ⚠️ NEVER construct timestamps yourself — always use the new-file.ps1 script.
   3. SKILL EXTRACTION: If you found a reusable pattern, write/update
      .squad/skills/{skill-name}/SKILL.md (read templates/skill.md for format).
-  
+
   ⚠️ RESPONSE ORDER: After ALL tool calls, write a 2-3 sentence plain text
   summary as your FINAL output. No tool calls after this summary.
 ```
@@ -870,13 +903,21 @@ prompt: |
   SPAWN MANIFEST: {spawn_manifest}
 
   Tasks (in order):
-  1. ORCHESTRATION LOG: Write .squad/orchestration-log/{timestamp}-{agent}.md per agent. Use ISO 8601 UTC timestamp.
-  2. SESSION LOG: Write .squad/log/{timestamp}-{topic}.md. Brief. Use ISO 8601 UTC timestamp.
+  1. ORCHESTRATION LOG: For each agent in the spawn manifest, create the log file:
+     pwsh .squad/templates/new-file.ps1 -Dir "orchestration-log" -Slug "{agent}-{slug}"
+     Then write the orchestration entry to the returned file path.
+  2. SESSION LOG: Create the session log file:
+     pwsh .squad/templates/new-file.ps1 -Dir "log" -Slug "{topic-slug}"
+     Then write the session summary to the returned file path. Brief. Facts only.
   3. DECISION INBOX: Merge .squad/decisions/inbox/ → decisions.md, delete inbox files. Deduplicate.
+     After merging, update the ## Decisions Index table at the top of decisions.md.
   4. CROSS-AGENT: Append team updates to affected agents' history.md.
-  5. DECISIONS ARCHIVE: If decisions.md exceeds ~20KB, archive entries older than 30 days to decisions-archive.md.
+  5. TASK STATE: If tasks were dispatched, update .squad/specs/{feature}/state.json and
+     .squad/project/status.json per the Task State Update Protocol.
   6. GIT COMMIT: Stage with `git add .squad/`, then unstage runtime state that must not reach protected branches: `git reset HEAD -- .squad/orchestration-log/ .squad/log/ .squad/decisions/inbox/ .squad/sessions/ 2>/dev/null`. Commit remaining staged changes (write msg to temp file, use -F). Skip if nothing staged after reset.
-  7. HISTORY SUMMARIZATION: If any history.md >12KB, summarize old entries to ## Core Context.
+  7. FILE SIZE CHECK: Check sizes of decisions.md, all agents/*/history.md, and all
+     specs/*/.progress.md. If any exceed their limit (decisions: 20KB, history: 12KB,
+     progress: 15KB), summarize and archive per the File Size Limits in your charter.
 
   Never speak to user. ⚠️ End with plain text summary after all tool calls.
 ```
