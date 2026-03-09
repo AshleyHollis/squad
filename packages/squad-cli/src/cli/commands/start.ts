@@ -120,11 +120,42 @@ export async function runStart(cwd: string, options: StartOptions): Promise<void
   // Dynamic import node-pty (native module)
   const nodePty = await import('node-pty');
 
-  const copilotExePath = path.join(
-    'C:', 'ProgramData', 'global-npm', 'node_modules', '@github', 'copilot',
-    'node_modules', '@github', 'copilot-win32-x64', 'copilot.exe'
-  );
-  const defaultCmd = fs.existsSync(copilotExePath) ? copilotExePath : 'copilot';
+  let defaultCmd = 'copilot';
+
+  // On Windows, try known install locations in order of preference
+  if (process.platform === 'win32') {
+    const candidates: string[] = [
+      // Global npm install
+      path.join('C:', 'ProgramData', 'global-npm', 'node_modules', '@github', 'copilot',
+        'node_modules', '@github', 'copilot-win32-x64', 'copilot.exe'),
+    ];
+
+    // WinGet install (dynamic path with package hash)
+    const wingetBase = path.join(process.env.LOCALAPPDATA || '', 'Microsoft', 'WinGet', 'Packages');
+    if (fs.existsSync(wingetBase)) {
+      try {
+        const dirs = fs.readdirSync(wingetBase).filter(d => d.startsWith('GitHub.Copilot_'));
+        for (const dir of dirs) {
+          candidates.push(path.join(wingetBase, dir, 'copilot.exe'));
+        }
+      } catch { /* ignore */ }
+    }
+
+    // Resolve from PATH using where.exe
+    try {
+      const { execSync } = await import('node:child_process');
+      const wherePath = execSync('where copilot', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim().split('\n')[0]!.trim();
+      if (wherePath) candidates.push(wherePath);
+    } catch { /* not in PATH */ }
+
+    for (const candidate of candidates) {
+      if (fs.existsSync(candidate)) {
+        defaultCmd = candidate;
+        break;
+      }
+    }
+  }
+
   const copilotCmd = options.command || defaultCmd;
 
   const cols = process.stdout.columns || 120;
