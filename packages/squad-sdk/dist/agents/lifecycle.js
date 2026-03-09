@@ -1,0 +1,284 @@
+/**
+ * Agent Session Lifecycle (M1-7)
+ *
+ * Orchestrates the complete lifecycle of agent sessions:
+ * - Spawning: charter compilation, model selection, session creation
+ * - Management: status tracking, message handling
+ * - Destruction: graceful shutdown and history saving
+ */
+import { compileCharter } from './charter-compiler.js';
+import { resolveModel } from './model-selector.js';
+import { ConfigurationError, SessionLifecycleError } from '../adapter/errors.js';
+import * as fs from 'fs/promises';
+import * as path from 'path';
+import { trace, SpanStatusCode } from '../runtime/otel-api.js';
+import { recordAgentSpawn, recordAgentDestroy, recordAgentError } from '../runtime/otel-metrics.js';
+const tracer = trace.getTracer('squad-sdk');
+/**
+ * Manages the full lifecycle of agent sessions.
+ *
+ * Coordinates charter compilation, model selection, session creation,
+ * and graceful shutdown with history persistence.
+ */
+export class AgentLifecycleManager {
+    client;
+    teamRoot;
+    defaultIdleTimeout;
+    agents = new Map();
+    idleCheckTimer = null;
+    constructor(config) {
+        this.client = config.client;
+        this.teamRoot = config.teamRoot;
+        this.defaultIdleTimeout = config.defaultIdleTimeout ?? 300_000; // 5 minutes
+        // Start idle timeout checker
+        this.startIdleChecker();
+    }
+    /**
+     * Spawn a new agent with full lifecycle setup.
+     *
+     * Pipeline:
+     * 1. Read charter.md from team root
+     * 2. Compile charter with team context
+     * 3. Resolve model using 4-layer priority
+     * 4. Create session via Squad Client
+     * 5. Set up event handlers
+     * 6. Return AgentHandle
+     *
+     * @param options - Spawn options
+     * @returns Agent handle for control and communication
+     */
+    async spawnAgent(options) {
+        const span = tracer.startSpan('squad.lifecycle.spawnAgent');
+        span.setAttribute('agent.name', options.agentName);
+        span.setAttribute('task.type', options.taskType ?? 'code');
+        const { agentName, task, taskType = 'code', modelOverride, teamContext, routingRules, decisions, idleTimeout = this.defaultIdleTimeout, } = options;
+        try {
+            // Step 1: Read charter.md
+            const charterPath = path.join(this.teamRoot, '.ai-team', 'agents', agentName, 'charter.md');
+            let charterContent;
+            try {
+                charterContent = await fs.readFile(charterPath, 'utf-8');
+            }
+            catch (error) {
+                throw new ConfigurationError(`Charter not found for agent '${agentName}' at ${charterPath}`, {
+                    agentName,
+                    operation: 'spawnAgent',
+                    timestamp: new Date(),
+                    metadata: { charterPath },
+                }, error instanceof Error ? error : undefined);
+            }
+            // Step 2: Compile charter
+            const compileOptions = {
+                agentName,
+                charterPath,
+                teamContext,
+                routingRules,
+                decisions,
+            };
+            const agentConfig = compileCharter(compileOptions);
+            // Step 3: Resolve model
+            const modelOptions = {
+                userOverride: modelOverride,
+                charterPreference: agentConfig.prompt.includes('## Model')
+                    ? this.extractModelPreference(charterContent)
+                    : undefined,
+                taskType,
+                agentRole: agentName,
+            };
+            const resolvedModel = resolveModel(modelOptions);
+            // Step 4: Create session
+            const sessionConfig = {
+                model: resolvedModel.model,
+                systemMessage: {
+                    content: agentConfig.prompt,
+                },
+            };
+            const session = await this.client.createSession(sessionConfig);
+            // Step 5: Create handle with event handlers
+            const handle = new AgentHandleImpl({
+                agentName,
+                sessionId: session.sessionId,
+                model: resolvedModel.model,
+                session,
+                idleTimeout,
+                onDestroy: () => this.agents.delete(session.sessionId),
+            });
+            this.agents.set(session.sessionId, handle);
+            recordAgentSpawn(agentName, 'lifecycle');
+            // Step 6: Send initial task
+            await handle.sendMessage(task);
+            return handle;
+        }
+        catch (error) {
+            recordAgentError(agentName, error instanceof Error ? error.constructor.name : 'unknown');
+            span.setStatus({ code: SpanStatusCode.ERROR, message: error instanceof Error ? error.message : String(error) });
+            span.recordException(error instanceof Error ? error : new Error(String(error)));
+            throw new SessionLifecycleError(`Failed to spawn agent '${agentName}': ${error instanceof Error ? error.message : String(error)}`, {
+                agentName,
+                operation: 'spawnAgent',
+                timestamp: new Date(),
+            }, false, error instanceof Error ? error : undefined);
+        }
+        finally {
+            span.end();
+        }
+    }
+    /**
+     * Destroy an agent gracefully.
+     * Saves history and cleans up session.
+     *
+     * @param handle - Agent handle to destroy
+     */
+    async destroyAgent(handle) {
+        const span = tracer.startSpan('squad.lifecycle.destroyAgent');
+        span.setAttribute('agent.name', handle.agentName);
+        try {
+            await handle.destroy();
+            this.agents.delete(handle.sessionId);
+            recordAgentDestroy(handle.agentName);
+        }
+        catch (err) {
+            span.setStatus({ code: SpanStatusCode.ERROR, message: err instanceof Error ? err.message : String(err) });
+            span.recordException(err instanceof Error ? err : new Error(String(err)));
+            throw err;
+        }
+        finally {
+            span.end();
+        }
+    }
+    /**
+     * List all active agent sessions.
+     *
+     * @returns Array of active agent handles
+     */
+    listActive() {
+        return Array.from(this.agents.values()).filter(agent => agent.status !== 'destroyed');
+    }
+    /**
+     * Get agent handle by session ID.
+     *
+     * @param sessionId - Session ID to look up
+     * @returns Agent handle or undefined
+     */
+    getAgent(sessionId) {
+        return this.agents.get(sessionId);
+    }
+    /**
+     * Shutdown all agents gracefully.
+     */
+    async shutdown() {
+        if (this.idleCheckTimer) {
+            clearInterval(this.idleCheckTimer);
+            this.idleCheckTimer = null;
+        }
+        const destroyPromises = Array.from(this.agents.values()).map(agent => agent.destroy().catch(err => {
+            console.error(`Failed to destroy agent ${agent.agentName}:`, err);
+        }));
+        await Promise.all(destroyPromises);
+        this.agents.clear();
+    }
+    /**
+     * Start periodic idle timeout checker.
+     * @private
+     */
+    startIdleChecker() {
+        this.idleCheckTimer = setInterval(() => {
+            const now = Date.now();
+            for (const agent of this.agents.values()) {
+                const idleTimeMs = now - agent.lastActivityAt.getTime();
+                if (idleTimeMs > this.defaultIdleTimeout && agent.status === 'active') {
+                    agent.markIdle();
+                }
+            }
+        }, 30_000); // Check every 30 seconds
+    }
+    /**
+     * Extract model preference from charter content.
+     * @private
+     */
+    extractModelPreference(charterContent) {
+        const modelMatch = charterContent.match(/##\s+Model\s*\n[\s\S]*?\*\*Preferred:\*\*\s*(.+)/i);
+        return modelMatch ? modelMatch[1].trim() : undefined;
+    }
+}
+/**
+ * Internal implementation of AgentHandle.
+ * @private
+ */
+class AgentHandleImpl {
+    agentName;
+    sessionId;
+    model;
+    status;
+    createdAt;
+    lastActivityAt;
+    session;
+    idleTimeout;
+    onDestroy;
+    constructor(config) {
+        this.agentName = config.agentName;
+        this.sessionId = config.sessionId;
+        this.model = config.model;
+        this.session = config.session;
+        this.idleTimeout = config.idleTimeout;
+        this.onDestroy = config.onDestroy;
+        this.status = 'active';
+        this.createdAt = new Date();
+        this.lastActivityAt = new Date();
+    }
+    async sendMessage(prompt) {
+        if (this.status === 'destroyed') {
+            throw new SessionLifecycleError('Cannot send message to destroyed agent', {
+                agentName: this.agentName,
+                sessionId: this.sessionId,
+                operation: 'sendMessage',
+                timestamp: new Date(),
+            });
+        }
+        try {
+            this.status = 'active';
+            this.lastActivityAt = new Date();
+            // Send message via session
+            await this.session.sendMessage({ prompt });
+        }
+        catch (error) {
+            this.status = 'error';
+            throw new SessionLifecycleError(`Failed to send message to agent '${this.agentName}': ${error instanceof Error ? error.message : String(error)}`, {
+                agentName: this.agentName,
+                sessionId: this.sessionId,
+                operation: 'sendMessage',
+                timestamp: new Date(),
+            }, false, error instanceof Error ? error : undefined);
+        }
+    }
+    async destroy() {
+        if (this.status === 'destroyed') {
+            return;
+        }
+        try {
+            this.status = 'destroyed';
+            // Clean up session
+            await this.session.close();
+            // Notify lifecycle manager
+            this.onDestroy();
+        }
+        catch (error) {
+            throw new SessionLifecycleError(`Failed to destroy agent '${this.agentName}': ${error instanceof Error ? error.message : String(error)}`, {
+                agentName: this.agentName,
+                sessionId: this.sessionId,
+                operation: 'destroy',
+                timestamp: new Date(),
+            }, false, error instanceof Error ? error : undefined);
+        }
+    }
+    /**
+     * Mark agent as idle (called by lifecycle manager).
+     * @internal
+     */
+    markIdle() {
+        if (this.status === 'active') {
+            this.status = 'idle';
+        }
+    }
+}
+//# sourceMappingURL=lifecycle.js.map

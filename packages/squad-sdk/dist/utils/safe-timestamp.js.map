@@ -1,0 +1,1 @@
+{"version":3,"file":"safe-timestamp.js","sourceRoot":"","sources":["../../src/utils/safe-timestamp.ts"],"names":[],"mappings":"AAAA;;;GAGG;AACH,MAAM,UAAU,aAAa;IAC3B,OAAO,IAAI,IAAI,EAAE,CAAC,WAAW,EAAE,CAAC,OAAO,CAAC,IAAI,EAAE,GAAG,CAAC,CAAC,OAAO,CAAC,WAAW,EAAE,GAAG,CAAC,CAAC;AAC/E,CAAC"}
