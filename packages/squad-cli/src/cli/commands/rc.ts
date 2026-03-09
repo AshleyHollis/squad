@@ -53,12 +53,20 @@ export async function runRC(cwd: string, options: RCOptions): Promise<void> {
   if (squadDir) {
     try {
       const teamMd = fs.readFileSync(path.join(squadDir, 'team.md'), 'utf-8');
-      const memberLines = teamMd.split('\n').filter(l => l.startsWith('|') && l.includes('Active'));
-      for (const line of memberLines) {
+      // Find ## Members section, then parse the markdown table rows
+      const lines = teamMd.split('\n');
+      let inMembers = false;
+      for (const line of lines) {
+        if (/^##\s+Members/.test(line)) { inMembers = true; continue; }
+        if (inMembers && /^##\s/.test(line)) break; // next section
+        if (!inMembers || !line.startsWith('|')) continue;
         const cols = line.split('|').map(c => c.trim()).filter(Boolean);
-        if (cols.length >= 2 && cols[0] !== 'Name') {
-          agents.push({ name: cols[0]!, role: cols[1]! });
-        }
+        // Skip header row and separator row (e.g. | --- | --- |)
+        if (cols.length < 2 || cols[0] === 'Name' || /^[-:]+$/.test(cols[0]!)) continue;
+        // Skip inactive/retired agents
+        const hasInactiveStatus = cols.some(c => c === 'Inactive' || c === 'Retired');
+        if (hasInactiveStatus) continue;
+        agents.push({ name: cols[0]!, role: cols[1]! });
       }
       console.log(`  ${GREEN}✓${RESET} Loaded ${agents.length} agents from team.md\n`);
     } catch {
@@ -166,7 +174,8 @@ export async function runRC(cwd: string, options: RCOptions): Promise<void> {
   });
 
   const actualPort = await bridge.start();
-  const localUrl = `http://localhost:${actualPort}`;
+  const token = bridge.getSessionToken();
+  const localUrl = `http://localhost:${actualPort}?token=${token}`;
 
   // Initialize agent roster in bridge
   const allAgents = copilotReady
@@ -184,14 +193,37 @@ export async function runRC(cwd: string, options: RCOptions): Promise<void> {
   // Try to find copilot in common locations, fall back to PATH
   let copilotCmd = 'copilot';
   
-  // On Windows, try the global npm location first
+  // On Windows, try known install locations in order of preference
   if (process.platform === 'win32') {
-    const winPath = path.join(
-      'C:', 'ProgramData', 'global-npm', 'node_modules', '@github', 'copilot',
-      'node_modules', '@github', 'copilot-win32-x64', 'copilot.exe'
-    );
-    if (fs.existsSync(winPath)) {
-      copilotCmd = winPath;
+    const candidates: string[] = [
+      // Global npm install
+      path.join('C:', 'ProgramData', 'global-npm', 'node_modules', '@github', 'copilot',
+        'node_modules', '@github', 'copilot-win32-x64', 'copilot.exe'),
+    ];
+
+    // WinGet install (dynamic path with package hash)
+    const wingetBase = path.join(process.env.LOCALAPPDATA || '', 'Microsoft', 'WinGet', 'Packages');
+    if (fs.existsSync(wingetBase)) {
+      try {
+        const dirs = fs.readdirSync(wingetBase).filter(d => d.startsWith('GitHub.Copilot_'));
+        for (const dir of dirs) {
+          candidates.push(path.join(wingetBase, dir, 'copilot.exe'));
+        }
+      } catch { /* ignore */ }
+    }
+
+    // Resolve from PATH using where.exe
+    try {
+      const { execSync } = await import('node:child_process');
+      const wherePath = execSync('where copilot', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim().split('\n')[0]!.trim();
+      if (wherePath) candidates.push(wherePath);
+    } catch { /* not in PATH */ }
+
+    for (const candidate of candidates) {
+      if (fs.existsSync(candidate)) {
+        copilotCmd = candidate;
+        break;
+      }
     }
   }
 
@@ -251,13 +283,14 @@ export async function runRC(cwd: string, options: RCOptions): Promise<void> {
       console.log(`  ${DIM}Creating tunnel...${RESET}`);
       try {
         const tunnel = await createTunnel(actualPort, { repo, branch, machine });
-        console.log(`  ${GREEN}✓${RESET} Tunnel active: ${BOLD}${tunnel.url}${RESET}\n`);
+        const tunnelWithToken = `${tunnel.url}?token=${token}`;
+        console.log(`  ${GREEN}✓${RESET} Tunnel active: ${BOLD}${tunnelWithToken}${RESET}\n`);
 
         // Show QR code
         try {
           // @ts-ignore - no type declarations for qrcode-terminal
           const qrcode = (await import('qrcode-terminal')) as any;
-          qrcode.default.generate(tunnel.url, { small: true }, (code: string) => {
+          qrcode.default.generate(tunnelWithToken, { small: true }, (code: string) => {
             console.log(code);
           });
         } catch {

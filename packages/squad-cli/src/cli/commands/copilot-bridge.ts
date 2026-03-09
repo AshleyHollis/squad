@@ -11,6 +11,7 @@ import { createInterface } from 'node:readline';
 export interface CopilotBridgeConfig {
   cwd: string;
   agent?: string;
+  copilotPath?: string;
 }
 
 export class CopilotBridge {
@@ -24,15 +25,16 @@ export class CopilotBridge {
   constructor(private config: CopilotBridgeConfig) {}
 
   /** Check if copilot CLI supports ACP stdio mode */
-  static async checkCompatibility(): Promise<{ compatible: boolean; version: string; message: string }> {
+  static async checkCompatibility(copilotPath?: string): Promise<{ compatible: boolean; version: string; message: string }> {
+    const cmd = copilotPath || 'copilot';
     try {
-      const version = execSync('copilot --version', { encoding: 'utf-8', timeout: 5000 }).trim();
+      const version = execSync(`"${cmd}" --version`, { encoding: 'utf-8', timeout: 5000 }).trim();
       const versionMatch = version.match(/(\d+\.\d+\.\d+[-\w]*)/);
       const ver = versionMatch?.[1] || 'unknown';
 
       // Test if --acp --stdio actually produces output
       const testResult = await new Promise<boolean>((resolve) => {
-        const cp = spawn('copilot', ['--acp', '--stdio'], { stdio: ['pipe', 'pipe', 'pipe'] });
+        const cp = spawn(cmd, ['--acp', '--stdio'], { stdio: ['pipe', 'pipe', 'pipe'] });
         let gotOutput = false;
 
         cp.stdout?.on('data', () => { gotOutput = true; });
@@ -41,7 +43,7 @@ export class CopilotBridge {
         setTimeout(() => {
           const msg = JSON.stringify({
             jsonrpc: '2.0', id: 1, method: 'initialize',
-            params: { protocolVersion: '2025-03-26', clientCapabilities: {}, clientInfo: { name: 'squad-rc-check', version: '1.0.0' } }
+            params: { protocolVersion: 1, clientCapabilities: {}, clientInfo: { name: 'squad-rc-check', version: '1.0.0' } }
           });
           try { cp.stdin?.write(msg + '\n'); } catch { /* ignore */ }
         }, 2000);
@@ -76,7 +78,7 @@ export class CopilotBridge {
       args.push('--agent', this.config.agent);
     }
 
-    this.child = spawn('copilot', args, {
+    this.child = spawn(this.config.copilotPath || 'copilot', args, {
       cwd: this.config.cwd,
       stdio: ['pipe', 'pipe', 'pipe'],
     });
@@ -162,7 +164,7 @@ export class CopilotBridge {
   private async initialize(): Promise<void> {
     // Step 1: initialize
     await this.sendRequest('initialize', {
-      protocolVersion: '2025-01-01',
+      protocolVersion: 1,
       clientCapabilities: {},
       clientInfo: { name: 'squad-rc', version: '1.0.0' },
     });
