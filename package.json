@@ -1,6 +1,6 @@
 {
   "name": "@bradygaster/squad",
-  "version": "0.8.25.5",
+  "version": "0.8.25.9",
   "private": true,
   "description": "Squad — Programmable multi-agent runtime for GitHub Copilot, built on @github/copilot-sdk",
   "type": "module",
@@ -14,14 +14,10 @@
     "test-fixtures/",
     ".npmignore"
   ],
-  "workspaces": [
-    "packages/*"
-  ],
   "scripts": {
     "prepare": "node -e \"try{require('child_process').execSync('npm run build',{stdio:'inherit'})}catch(e){}\"",
     "prebuild": "node scripts/bump-build.mjs",
-    "build": "npm run build -w packages/squad-sdk && npm run build -w packages/squad-cli",
-    "sync-templates": "node scripts/sync-templates.mjs",
+    "build": "cd packages/squad-sdk && npm run build && cd ../squad-cli && npm run build",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "tsc --noEmit -p packages/squad-sdk/tsconfig.json && tsc --noEmit -p packages/squad-cli/tsconfig.json",
@@ -69,6 +65,12 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/bradygaster/squad.git"
+  },
+  "dependencies": {
+    "@github/copilot-sdk": "^0.1.32",
+    "ink": "^6.8.0",
+    "react": "^19.2.4",
+    "vscode-jsonrpc": "^8.2.1"
   },
   "optionalDependencies": {
     "node-pty": "^1.1.0"
