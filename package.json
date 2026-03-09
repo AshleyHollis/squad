@@ -1,12 +1,22 @@
 {
   "name": "@bradygaster/squad",
-  "version": "0.8.26",
+  "version": "0.8.26-dev.2",
   "private": true,
   "description": "Squad — Programmable multi-agent runtime for GitHub Copilot, built on @github/copilot-sdk",
   "type": "module",
   "bin": {
     "squad": "index.cjs"
   },
+  "files": [
+    "index.cjs",
+    "packages/squad-cli/dist/",
+    "packages/squad-cli/package.json",
+    "packages/squad-cli/src/remote-ui/",
+    "packages/squad-sdk/dist/",
+    "packages/squad-sdk/package.json",
+    "templates/",
+    ".squad-templates/"
+  ],
   "workspaces": [
     "packages/*"
   ],
