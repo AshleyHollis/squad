@@ -46,15 +46,33 @@ Templates scaffolded into `.squad/templates/` during init:
 
 ### Install This Fork
 
-```bash
-mkdir my-project && cd my-project
-git init
+#### Option 1: Global install (persistent `squad` command)
 
-# Install from this fork
-npx github:AshleyHollis/squad#ralph-specum
+```bash
+# One-time setup: required for npm global installs from git URLs
+npm config set install-links true
+
+# Install globally
+npm install -g github:AshleyHollis/squad#ralph-specum
 ```
 
-Then open Copilot, select Squad, and describe what you're building. The coordinator will route to the Spec agent to establish project principles before any code is written.
+Now use it anywhere:
+
+```bash
+squad start --tunnel    # Launch Copilot with remote phone access
+squad --version         # Check installed version
+squad --help            # See all commands
+```
+
+#### Option 2: One-off with npx (no install)
+
+```bash
+npx -y github:AshleyHollis/squad#ralph-specum
+```
+
+#### After installing
+
+Open Copilot, select Squad, and describe what you're building. The coordinator will route to the Spec agent to establish project principles before any code is written.
 
 ### Keeping Up with Upstream
 

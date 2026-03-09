@@ -22,10 +22,22 @@ That's it. You're in.
 
 The CLI is the fastest way to use Squad from any terminal.
 
-### Global install
+### Global install (from npm)
 
 ```bash
 npm install -g @bradygaster/squad-cli
+```
+
+### Global install (from GitHub)
+
+For development branches or unreleased features, install directly from a GitHub branch:
+
+```bash
+# One-time setup: required for npm global installs from git URLs
+npm config set install-links true
+
+# Install from GitHub (e.g., the ralph-specum branch)
+npm install -g github:AshleyHollis/squad#ralph-specum
 ```
 
 Now use it anywhere:
@@ -34,6 +46,7 @@ Now use it anywhere:
 squad init
 squad status
 squad watch
+squad start --tunnel
 ```
 
 ### One-off with npx
