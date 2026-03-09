@@ -58,7 +58,8 @@ function formatVersion({ base, build, prerelease }) {
   if (prerelease) {
     return `${base}${prerelease}.${build}`;
   }
-  return `${base}.${build}`;
+  // Use prerelease format for valid semver: 0.8.25-dev.1 instead of 0.8.25.1
+  return `${base}-dev.${build}`;
 }
 
 // Read the canonical version from root package.json

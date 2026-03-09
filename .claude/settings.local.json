@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(done)",
+      "Bash(ls -la \"C:\\\\Users\\\\ashle\\\\Source\\\\GitHub\\\\AshleyHollis\\\\meal-planner-v02/.squad/specs/\"*/)",
+      "Bash(grep -n \"Status:\" \"C:\\\\Users\\\\ashle\\\\Source\\\\GitHub\\\\AshleyHollis\\\\meal-planner-v02/.squad/specs/\"*/feature-spec.md)",
+      "Bash(ls -d \"C:\\\\Users\\\\ashle\\\\Source\\\\GitHub\\\\AshleyHollis\\\\meal-planner-v02/.squad/specs\"/*/)",
+      "Bash(xargs -I {} basename {})",
+      "Bash(find \"C:\\\\Users\\\\ashle\\\\Source\\\\GitHub\\\\AshleyHollis\\\\meal-planner-v02\\\\.squad\" -name \"*.md\" -type f -exec wc -c {} +)"
+    ]
+  }
+}
