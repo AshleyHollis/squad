@@ -120,8 +120,17 @@ export async function runStart(cwd, options) {
         console.log(`${YELLOW}⚠${RESET} devtunnel not installed. Local mirror on port ${actualPort}.`);
     }
     // ─── Spawn copilot in PTY ─────────────────────────────────
-    // Dynamic import node-pty (native module)
-    const nodePty = await import('node-pty');
+    // Dynamic import node-pty (native module, optional dependency)
+    let nodePty;
+    try {
+        nodePty = await import('node-pty');
+    }
+    catch {
+        console.error(`${YELLOW}✗${RESET} node-pty is required for 'squad start' but could not be loaded.`);
+        console.error(`  Install it with: npm install -g node-pty`);
+        console.error(`  (Requires a C++ build toolchain — on Windows run: npm install -g windows-build-tools)`);
+        process.exit(1);
+    }
     let defaultCmd = 'copilot';
     // On Windows, try known install locations in order of preference
     if (process.platform === 'win32') {
