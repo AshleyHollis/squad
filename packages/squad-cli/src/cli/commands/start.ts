@@ -117,8 +117,16 @@ export async function runStart(cwd: string, options: StartOptions): Promise<void
   }
 
   // ─── Spawn copilot in PTY ─────────────────────────────────
-  // Dynamic import node-pty (native module)
-  const nodePty = await import('node-pty');
+  // Dynamic import node-pty (native module, optional dependency)
+  let nodePty: typeof import('node-pty');
+  try {
+    nodePty = await import('node-pty');
+  } catch {
+    console.error(`${YELLOW}✗${RESET} node-pty is required for 'squad start' but could not be loaded.`);
+    console.error(`  Install it with: npm install -g node-pty`);
+    console.error(`  (Requires a C++ build toolchain — on Windows run: npm install -g windows-build-tools)`);
+    process.exit(1);
+  }
 
   let defaultCmd = 'copilot';
 
