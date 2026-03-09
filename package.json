@@ -1,12 +1,19 @@
 {
   "name": "@bradygaster/squad",
-  "version": "0.8.25.4",
+  "version": "0.8.25.5",
   "private": true,
   "description": "Squad — Programmable multi-agent runtime for GitHub Copilot, built on @github/copilot-sdk",
   "type": "module",
   "bin": {
     "squad": "index.cjs"
   },
+  "files": [
+    "index.cjs",
+    "package.json",
+    "packages/",
+    "test-fixtures/",
+    ".npmignore"
+  ],
   "workspaces": [
     "packages/*"
   ],
