@@ -1,5 +1,9 @@
 node_modules/
 dist/
+# Include built packages (needed for GitHub-based global installs where
+# devDependencies like TypeScript are not available to run the build)
+!packages/squad-cli/dist/
+!packages/squad-sdk/dist/
 .env
 *.tsbuildinfo
 coverage/

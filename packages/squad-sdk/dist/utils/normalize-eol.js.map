@@ -1,0 +1,1 @@
+{"version":3,"file":"normalize-eol.js","sourceRoot":"","sources":["../../src/utils/normalize-eol.ts"],"names":[],"mappings":"AAAA;;;GAGG;AACH,MAAM,UAAU,YAAY,CAAC,OAAe;IAC1C,OAAO,OAAO,CAAC,OAAO,CAAC,OAAO,EAAE,IAAI,CAAC,CAAC,OAAO,CAAC,KAAK,EAAE,IAAI,CAAC,CAAC;AAC7D,CAAC"}

@@ -1,0 +1,314 @@
+import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { Box, Text, Static, useApp, useInput } from 'ink';
+import { AgentPanel } from './AgentPanel.js';
+import { MessageStream, renderMarkdownInline, formatDuration } from './MessageStream.js';
+import { InputPrompt } from './InputPrompt.js';
+import { parseInput } from '../router.js';
+import { executeCommand } from '../commands.js';
+import { loadWelcomeData, getRoleEmoji } from '../lifecycle.js';
+import { isNoColor, useTerminalWidth, useTerminalHeight, useLayoutTier } from '../terminal.js';
+import { Separator } from './Separator.js';
+import { MemoryManager } from '../memory.js';
+const EXIT_WORDS = new Set(['exit', 'quit', 'q']);
+export const App = ({ registry, renderer, teamRoot, version, maxMessages, onReady, onDispatch, onCancel, onRestoreSession }) => {
+    const { exit } = useApp();
+    // Session-scoped ID ensures Static keys are unique across session boundaries,
+    // preventing Ink from confusing items when sessions are restored.
+    const sessionId = useMemo(() => Date.now().toString(36), []);
+    const memoryManager = useMemo(() => new MemoryManager(maxMessages != null ? { maxMessages } : undefined), [maxMessages]);
+    const [messages, setMessages] = useState([]);
+    const [archivedMessages, setArchivedMessages] = useState([]);
+    const [agents, setAgents] = useState(registry.getAll());
+    const [streamingContent, setStreamingContent] = useState(new Map());
+    const [processing, setProcessing] = useState(false);
+    const [activityHint, setActivityHint] = useState(undefined);
+    const [agentActivities, setAgentActivities] = useState(new Map());
+    const [welcome, setWelcome] = useState(() => loadWelcomeData(teamRoot));
+    /**
+     * True after a no-args `/init` so the next user message is treated as a
+     * team-cast request (equivalent to `/init <message>`).
+     */
+    const [awaitingInitPrompt, setAwaitingInitPrompt] = useState(false);
+    const messagesRef = useRef([]);
+    const ctrlCRef = useRef(0);
+    const ctrlCTimerRef = useRef(null);
+    // Append messages and enforce the history cap, archiving overflow
+    const appendMessages = useCallback((updater) => {
+        setMessages(prev => {
+            const next = updater(prev);
+            const { kept, archived } = memoryManager.trimWithArchival(next);
+            if (archived.length > 0) {
+                setArchivedMessages(old => [...old, ...archived]);
+            }
+            return kept;
+        });
+    }, [memoryManager]);
+    // Keep ref in sync so command handlers see latest history
+    useEffect(() => { messagesRef.current = messages; }, [messages]);
+    // Expose API for external callers (StreamBridge, coordinator)
+    useEffect(() => {
+        onReady?.({
+            addMessage: (msg) => {
+                appendMessages(prev => [...prev, msg]);
+                if (msg.agentName) {
+                    setStreamingContent(prev => {
+                        const next = new Map(prev);
+                        next.delete(msg.agentName);
+                        return next;
+                    });
+                }
+                setActivityHint(undefined);
+            },
+            clearMessages: () => {
+                setMessages([]);
+                setArchivedMessages([]);
+            },
+            setStreamingContent: (content) => {
+                if (content === null) {
+                    setStreamingContent(new Map());
+                }
+                else {
+                    setStreamingContent(prev => {
+                        const next = new Map(prev);
+                        next.set(content.agentName, content.content);
+                        return next;
+                    });
+                }
+            },
+            clearAgentStream: (agentName) => {
+                setStreamingContent(prev => {
+                    const next = new Map(prev);
+                    next.delete(agentName);
+                    return next;
+                });
+            },
+            setActivityHint,
+            setAgentActivity: (agentName, activity) => {
+                setAgentActivities(prev => {
+                    const next = new Map(prev);
+                    if (activity) {
+                        next.set(agentName, activity);
+                    }
+                    else {
+                        next.delete(agentName);
+                    }
+                    return next;
+                });
+            },
+            setProcessing,
+            refreshAgents: () => {
+                setAgents([...registry.getAll()]);
+            },
+            refreshWelcome: () => {
+                const data = loadWelcomeData(teamRoot);
+                if (data)
+                    setWelcome(data);
+            },
+        });
+    }, [onReady, registry, appendMessages]);
+    // Ctrl+C: cancel operation when processing, double-tap to exit when idle
+    useInput((_input, key) => {
+        if (key.ctrl && _input === 'c') {
+            if (processing && onCancel) {
+                // First Ctrl+C while processing → cancel operation and return to prompt
+                onCancel();
+                setProcessing(false);
+                return;
+            }
+            // Not processing, or no cancel handler → increment double-tap counter
+            ctrlCRef.current++;
+            if (ctrlCTimerRef.current)
+                clearTimeout(ctrlCTimerRef.current);
+            if (ctrlCRef.current >= 2) {
+                exit();
+                return;
+            }
+            // Single Ctrl+C when idle — show hint, reset after 1s
+            ctrlCTimerRef.current = setTimeout(() => { ctrlCRef.current = 0; }, 1000);
+            if (!processing) {
+                appendMessages(prev => [...prev, {
+                        role: 'system',
+                        content: 'Press Ctrl+C again to exit.',
+                        timestamp: new Date(),
+                    }]);
+            }
+        }
+    });
+    const handleSubmit = useCallback((input) => {
+        // Bare "exit" exits the shell
+        if (EXIT_WORDS.has(input.toLowerCase())) {
+            exit();
+            return;
+        }
+        const userMsg = { role: 'user', content: input, timestamp: new Date() };
+        appendMessages(prev => [...prev, userMsg]);
+        const knownAgents = registry.getAll().map(a => a.name);
+        const parsed = parseInput(input, knownAgents);
+        // If we're awaiting an init prompt and the user sent a non-slash message,
+        // treat it as an inline /init <prompt> cast request.
+        if (awaitingInitPrompt && parsed.type !== 'slash_command') {
+            setAwaitingInitPrompt(false);
+            if (!onDispatch) {
+                appendMessages(prev => [...prev, {
+                        role: 'system',
+                        content: 'SDK not connected. Try: (1) squad doctor to check setup, (2) check your internet connection, (3) restart the shell to reconnect.',
+                        timestamp: new Date(),
+                    }]);
+                return;
+            }
+            const castParsed = {
+                type: 'coordinator',
+                raw: input,
+                content: input,
+                skipCastConfirmation: false, // show confirmation, same as freeform cast
+            };
+            setProcessing(true);
+            onDispatch(castParsed).finally(() => {
+                setProcessing(false);
+                setAgents([...registry.getAll()]);
+            });
+            return;
+        }
+        if (parsed.type === 'slash_command') {
+            const result = executeCommand(parsed.command, parsed.args ?? [], {
+                registry,
+                renderer,
+                messageHistory: [...messagesRef.current, userMsg],
+                teamRoot,
+                version,
+                onRestoreSession,
+            });
+            if (result.exit) {
+                exit();
+                return;
+            }
+            if (result.clear) {
+                setMessages([]);
+                setArchivedMessages([]);
+                return;
+            }
+            if (result.triggerInitCast && onDispatch) {
+                // /init command returned a cast trigger — dispatch it as a coordinator message
+                const castParsed = {
+                    type: 'coordinator',
+                    raw: result.triggerInitCast.prompt,
+                    content: result.triggerInitCast.prompt,
+                    skipCastConfirmation: true,
+                };
+                setProcessing(true);
+                onDispatch(castParsed).finally(() => {
+                    setProcessing(false);
+                    setAgents([...registry.getAll()]);
+                });
+                return;
+            }
+            if (result.awaitInitPrompt) {
+                // No-args /init: show the guidance and wait for the user's next message
+                setAwaitingInitPrompt(true);
+            }
+            if (result.output) {
+                appendMessages(prev => [...prev, {
+                        role: 'system',
+                        content: result.output,
+                        timestamp: new Date(),
+                    }]);
+            }
+        }
+        else if (parsed.type === 'direct_agent' || parsed.type === 'coordinator') {
+            if (!onDispatch) {
+                appendMessages(prev => [...prev, {
+                        role: 'system',
+                        content: 'SDK not connected. Try: (1) squad doctor to check setup, (2) check your internet connection, (3) restart the shell to reconnect.',
+                        timestamp: new Date(),
+                    }]);
+                return;
+            }
+            setProcessing(true);
+            onDispatch(parsed).finally(() => {
+                setProcessing(false);
+                setAgents([...registry.getAll()]);
+            });
+        }
+        setAgents([...registry.getAll()]);
+    }, [registry, renderer, teamRoot, exit, onDispatch, appendMessages, awaitingInitPrompt]);
+    const rosterAgents = welcome?.agents ?? [];
+    const noColor = isNoColor();
+    const width = useTerminalWidth();
+    const tier = useLayoutTier();
+    const terminalHeight = useTerminalHeight();
+    const contentWidth = tier === 'wide' ? Math.min(width, 120) : tier === 'normal' ? Math.min(width, 80) : width;
+    // Budget live region height so InputPrompt is never pushed off-screen.
+    // Reserve 3 rows for InputPrompt (prompt line + hint + padding).
+    const INPUT_RESERVED_ROWS = 3;
+    const liveContentHeight = Math.max(terminalHeight - INPUT_RESERVED_ROWS, 4);
+    // Prefer lead/coordinator for first-run hint, fall back to first agent
+    const leadAgent = welcome?.agents.find(a => a.role?.toLowerCase().includes('lead') ||
+        a.role?.toLowerCase().includes('coordinator') ||
+        a.role?.toLowerCase().includes('architect'))?.name ?? welcome?.agents[0]?.name;
+    // Determine ThinkingIndicator phase based on SDK connection state
+    const thinkingPhase = !onDispatch ? 'connecting' : 'routing';
+    // Derive @mention hint from last user message (needed because MessageStream
+    // receives messages=[] after the Static scrollback refactor).
+    const mentionHint = useMemo(() => {
+        if (!processing)
+            return undefined;
+        const lastUser = [...messages].reverse().find(m => m.role === 'user');
+        if (lastUser) {
+            const atMatch = lastUser.content.match(/^@(\w+)/);
+            if (atMatch?.[1])
+                return `${atMatch[1]} is thinking...`;
+        }
+        return undefined;
+    }, [messages, processing]);
+    // Combine archived + current messages for Static rendering.
+    // This array only grows — archival moves items between the two source arrays
+    // but the combined list stays stable, which is required by Ink's Static tracking.
+    const staticMessages = useMemo(() => [...archivedMessages, ...messages], [archivedMessages, messages]);
+    const roleMap = useMemo(() => new Map((agents ?? []).map(a => [a.name, a.role])), [agents]);
+    // Memoize the header box — rendered once into Static scroll buffer at the top.
+    const headerElement = useMemo(() => {
+        // Narrow: minimal header, no border
+        if (tier === 'narrow') {
+            return (_jsxs(Box, { flexDirection: "column", paddingX: 1, children: [_jsx(Text, { bold: true, color: noColor ? undefined : 'cyan', children: "SQUAD" }), _jsxs(Text, { dimColor: true, children: ["v", version] }), _jsx(Text, { color: noColor ? undefined : 'yellow', dimColor: true, children: "\u26A0\uFE0F  Experimental" })] }));
+        }
+        // Normal: abbreviated header
+        if (tier === 'normal') {
+            return (_jsxs(Box, { flexDirection: "column", borderStyle: "round", borderColor: noColor ? undefined : 'cyan', paddingX: 1, children: [_jsxs(Text, { bold: true, color: noColor ? undefined : 'cyan', children: ["SQUAD v", version] }), _jsxs(Text, { dimColor: true, children: ["Type naturally \u00B7 ", _jsx(Text, { bold: true, children: "@Agent" }), " \u00B7 ", _jsx(Text, { bold: true, children: "/help" })] }), _jsx(Text, { color: noColor ? undefined : 'yellow', dimColor: true, children: "\u26A0\uFE0F  Experimental preview" })] }));
+        }
+        // Wide: full ASCII art header
+        return (_jsxs(Box, { flexDirection: "column", borderStyle: "round", borderColor: noColor ? undefined : 'cyan', paddingX: 1, children: [_jsx(Text, { bold: true, color: noColor ? undefined : 'cyan', children: '  ___  ___  _   _  _   ___\n / __|/ _ \\| | | |/_\\ |   \\\n \\__ \\ (_) | |_| / _ \\| |) |\n |___/\\__\\_\\\\___/_/ \\_\\___/' }), _jsx(Text, { children: ' ' }), _jsxs(Text, { dimColor: true, children: ["v", version, " \u00B7 Type naturally \u00B7 ", _jsx(Text, { bold: true, children: "@Agent" }), " to direct \u00B7 ", _jsx(Text, { bold: true, children: "/help" })] }), _jsx(Text, { color: noColor ? undefined : 'yellow', dimColor: true, children: "\u26A0\uFE0F  Experimental preview \u2014 file issues at github.com/bradygaster/squad" })] }));
+    }, [noColor, version, tier]);
+    const firstRunElement = useMemo(() => {
+        if (!welcome?.isFirstRun)
+            return null;
+        return (_jsx(Box, { flexDirection: "column", paddingX: 1, paddingY: 1, children: rosterAgents.length > 0 ? (_jsxs(_Fragment, { children: [_jsx(Text, { color: noColor ? undefined : 'green', bold: true, children: "Your squad is assembled." }), _jsx(Text, { children: " " }), _jsxs(Text, { bold: true, children: ["Try: ", _jsx(Text, { bold: true, color: noColor ? undefined : 'cyan', children: "What should we build first?" })] }), _jsx(Text, { dimColor: true, children: "Squad automatically routes your message to the best agent." }), _jsxs(Text, { dimColor: true, children: ["Or use ", _jsxs(Text, { bold: true, children: ["@", leadAgent] }), " to message an agent directly."] })] })) : null }));
+    }, [welcome?.isFirstRun, rosterAgents, noColor, leadAgent]);
+    const allStaticItems = useMemo(() => {
+        const items = [{ kind: 'header', key: 'welcome-header' }];
+        for (let i = 0; i < staticMessages.length; i++) {
+            items.push({ kind: 'msg', key: `${sessionId}-${i}`, msg: staticMessages[i], idx: i });
+        }
+        return items;
+    }, [staticMessages, sessionId]);
+    return (_jsxs(Box, { flexDirection: "column", children: [_jsx(Static, { items: allStaticItems, children: (item) => {
+                    if (item.kind === 'header') {
+                        return (_jsxs(Box, { flexDirection: "column", marginBottom: 1, children: [headerElement, firstRunElement] }, item.key));
+                    }
+                    const { msg, idx: i } = item;
+                    const isNewTurn = msg.role === 'user' && i > 0;
+                    const agentRole = msg.agentName ? roleMap.get(msg.agentName) : undefined;
+                    const emoji = agentRole ? getRoleEmoji(agentRole) : '';
+                    let duration = null;
+                    if (msg.role === 'agent') {
+                        for (let j = i - 1; j >= 0; j--) {
+                            if (staticMessages[j]?.role === 'user') {
+                                duration = formatDuration(staticMessages[j].timestamp, msg.timestamp);
+                                break;
+                            }
+                        }
+                    }
+                    return (_jsxs(Box, { flexDirection: "column", width: contentWidth, children: [isNewTurn && tier !== 'narrow' && _jsx(Separator, { marginTop: 1 }), _jsx(Box, { gap: 1, paddingLeft: msg.role === 'user' ? 0 : 2, children: msg.role === 'user' ? (_jsxs(Box, { flexDirection: "column", children: [_jsxs(Box, { gap: 1, children: [_jsx(Text, { color: noColor ? undefined : 'cyan', bold: true, children: "\u276F" }), _jsx(Text, { color: noColor ? undefined : 'cyan', wrap: "wrap", children: msg.content.split('\n')[0] ?? '' })] }), msg.content.split('\n').slice(1).map((line, li) => (_jsx(Box, { paddingLeft: 2, children: _jsx(Text, { color: noColor ? undefined : 'cyan', wrap: "wrap", children: line }) }, li)))] })) : msg.role === 'system' ? (_jsx(Text, { dimColor: true, wrap: "wrap", children: msg.content })) : (_jsxs(_Fragment, { children: [_jsxs(Text, { color: noColor ? undefined : 'green', bold: true, children: [emoji ? `${emoji} ` : '', (msg.agentName === 'coordinator' ? 'Squad' : msg.agentName) ?? 'agent', ":"] }), _jsx(Text, { wrap: "wrap", children: renderMarkdownInline(msg.content) }), duration && _jsxs(Text, { dimColor: true, children: ["(", duration, ")"] })] })) })] }, item.key));
+                } }), _jsxs(Box, { flexDirection: "column", ...(processing ? { height: liveContentHeight, overflow: 'hidden' } : {}), children: [_jsx(AgentPanel, { agents: agents, streamingContent: streamingContent }), _jsx(MessageStream, { messages: [], agents: agents, streamingContent: streamingContent, processing: processing, activityHint: activityHint || mentionHint, agentActivities: agentActivities, thinkingPhase: thinkingPhase })] }), _jsx(Box, { marginTop: 1, borderStyle: noColor ? undefined : 'round', borderColor: noColor ? undefined : 'cyan', paddingX: 1, children: _jsx(InputPrompt, { onSubmit: handleSubmit, disabled: processing, agentNames: agents.map(a => a.name), messageCount: messages.length }) })] }));
+};
+//# sourceMappingURL=App.js.map
