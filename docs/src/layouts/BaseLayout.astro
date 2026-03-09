@@ -6,6 +6,9 @@ interface Props {
 
 import squadLogo from '../assets/images/squad-logo.png';
 const { title, description = 'Squad — Your AI Development Team. Describe what you\'re building. Get a team of specialists that live in your repo.' } = Astro.props;
+const fullTitle = `${title} — Squad Docs`;
+const canonicalUrl = Astro.site ? new URL(Astro.url.pathname, Astro.site).href : undefined;
+const ogImage = Astro.site ? new URL(squadLogo.src, Astro.site).href : squadLogo.src;
 ---
 
 <!doctype html>
@@ -16,7 +19,20 @@ const { title, description = 'Squad — Your AI Development Team. Describe what 
     <meta name="description" content={description} />
     <meta name="generator" content={Astro.generator} />
     <link rel="icon" type="image/png" href={squadLogo.src} />
-    <title>{title} — Squad Docs</title>
+    <title>{fullTitle}</title>
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={ogImage} />
+    {canonicalUrl && <meta property="og:url" content={canonicalUrl} />}
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content={fullTitle} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
     <script is:inline>
       const theme = localStorage.getItem('theme');
       if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
