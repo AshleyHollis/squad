@@ -49,6 +49,31 @@ const dest = process.cwd();
 const pkg = require(path.join(root, 'package.json'));
 const cmd = process.argv[2];
 
+// --- Ensure workspace symlinks exist for global installs ---
+// When installed globally from a git URL, npm doesn't create workspace
+// symlinks. We need node_modules/@bradygaster/squad-sdk to point to
+// packages/squad-sdk/ so that imports from squad-cli resolve correctly.
+function ensureWorkspaceLinks() {
+  const links = [
+    { pkg: '@bradygaster/squad-sdk', dir: path.join(root, 'packages', 'squad-sdk') },
+    { pkg: '@bradygaster/squad-cli', dir: path.join(root, 'packages', 'squad-cli') },
+  ];
+  for (const { pkg: pkgName, dir } of links) {
+    const parts = pkgName.split('/');
+    const scopeDir = path.join(root, 'node_modules', parts[0]);
+    const linkPath = path.join(scopeDir, parts[1]);
+    if (!fs.existsSync(linkPath) && fs.existsSync(dir)) {
+      try {
+        fs.mkdirSync(scopeDir, { recursive: true });
+        // Use junction on Windows (no admin required), symlink on Unix
+        const type = process.platform === 'win32' ? 'junction' : 'dir';
+        fs.symlinkSync(dir, linkPath, type);
+      } catch { /* best effort */ }
+    }
+  }
+}
+ensureWorkspaceLinks();
+
 // --- Delegate CLI commands to squad-cli entry point ---
 // Commands like start, rc, remote-control, doctor, etc. are handled by
 // packages/squad-cli/dist/cli-entry.js. When installed globally from the
