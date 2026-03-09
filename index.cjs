@@ -47,6 +47,29 @@ const dest = process.cwd();
 const pkg = require(path.join(root, 'package.json'));
 const cmd = process.argv[2];
 
+// --- Delegate CLI commands to squad-cli entry point ---
+// Commands like start, rc, remote-control, doctor, etc. are handled by
+// packages/squad-cli/dist/cli-entry.js. When installed globally from the
+// monorepo root, index.cjs is the bin entry so we need to forward these.
+const CLI_COMMANDS = new Set([
+  'start', 'rc', 'remote-control', 'doctor', 'link', 'aspire',
+  'extract', 'streams', 'loop', 'hire',
+]);
+if (CLI_COMMANDS.has(cmd)) {
+  const cliEntry = path.join(root, 'packages', 'squad-cli', 'dist', 'cli-entry.js');
+  if (!fs.existsSync(cliEntry)) {
+    fatal(`CLI entry point not found: ${cliEntry}\nRun 'npm run build' first, or install with: npm install -g github:AshleyHollis/squad#ralph-specum`);
+  }
+  const { spawn } = require('child_process');
+  const child = spawn(process.execPath, [cliEntry, ...process.argv.slice(2)], {
+    cwd: dest,
+    stdio: 'inherit',
+  });
+  child.on('exit', (code) => process.exit(code || 0));
+  child.on('error', (err) => { fatal(`Failed to launch CLI: ${err.message}`); });
+  return;
+}
+
 // --version / --help
 if (cmd === '--version' || cmd === '-v') {
   console.log(`Package: ${pkg.version}`);
