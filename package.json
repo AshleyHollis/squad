@@ -14,8 +14,7 @@
     "packages/squad-cli/src/remote-ui/",
     "packages/squad-sdk/dist/",
     "packages/squad-sdk/package.json",
-    "templates/",
-    ".squad-templates/"
+    "templates/"
   ],
   "workspaces": [
     "packages/*"
