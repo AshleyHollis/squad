@@ -4,6 +4,7 @@
  * Creates SDK sessions via SquadClient, sends the task, and streams the response.
  */
 import { SquadClient } from '@bradygaster/squad-sdk/client';
+import { type TaskType } from '@bradygaster/squad-sdk/agents';
 import { SessionRegistry } from './sessions.js';
 export interface SpawnOptions {
     /** Wait for completion (sync) or fire-and-track (background) */
@@ -16,6 +17,10 @@ export interface SpawnOptions {
     client?: SquadClient;
     /** Working directory for the session */
     teamRoot?: string;
+    /** User-specified model override (highest priority) */
+    model?: string;
+    /** Task type for automatic model selection */
+    taskType?: TaskType;
 }
 export interface ToolDefinition {
     name: string;

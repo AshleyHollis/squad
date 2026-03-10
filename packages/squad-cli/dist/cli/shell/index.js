@@ -20,6 +20,7 @@ import { initSquadTelemetry, TIMEOUTS, StreamingPipeline, recordAgentSpawn, reco
 import { enableShellMetrics, recordShellSessionDuration, recordAgentResponseLatency, recordShellError } from './shell-metrics.js';
 import { buildCoordinatorPrompt, buildInitModePrompt, parseCoordinatorResponse, hasRosterEntries } from './coordinator.js';
 import { loadAgentCharter, buildAgentPrompt } from './spawn.js';
+import { resolveModel, parseCharterMarkdown } from '@bradygaster/squad-sdk/agents';
 import { createSession, saveSession, loadLatestSession } from './session-store.js';
 import { parseDispatchTargets } from './router.js';
 import { agentSessionGuidance, genericGuidance, formatGuidance } from './error-messages.js';
@@ -331,8 +332,17 @@ export async function runShell() {
                 const roleMatch = charter.match(/^#\s+\w+\s+—\s+(.+)$/m);
                 registry.register(agentName, roleMatch?.[1] ?? 'Agent');
             }
+            // Resolve model from charter's ## Model section
+            const parsed = parseCharterMarkdown(charter);
+            const resolved = resolveModel({
+                charterPreference: parsed.modelPreference,
+                taskType: 'code',
+                agentRole: agentName,
+            });
+            debugLog('dispatchToAgent: model resolved for', agentName, `→ ${resolved.model} (source: ${resolved.source})`);
             session = await client.createSession({
                 streaming: true,
+                model: resolved.model,
                 systemMessage: { mode: 'append', content: systemPrompt },
                 workingDirectory: teamRoot,
                 onPermissionRequest: approveAllPermissions,
