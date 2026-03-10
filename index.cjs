@@ -82,7 +82,8 @@ const CLI_COMMANDS = new Set([
   'start', 'rc', 'remote-control', 'doctor', 'link', 'aspire',
   'extract', 'streams', 'loop', 'hire',
 ]);
-if (CLI_COMMANDS.has(cmd)) {
+// No args → launch interactive shell via cli-entry.js
+if (cmd === undefined || CLI_COMMANDS.has(cmd)) {
   const cliEntry = path.join(root, 'packages', 'squad-cli', 'dist', 'cli-entry.js');
   if (!fs.existsSync(cliEntry)) {
     fatal(`CLI entry point not found: ${cliEntry}\nRun 'npm run build' first, or install with: npm install -g github:AshleyHollis/squad#ralph-specum`);

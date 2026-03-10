@@ -5,7 +5,7 @@
   "description": "Squad — Programmable multi-agent runtime for GitHub Copilot, built on @github/copilot-sdk",
   "type": "module",
   "bin": {
-    "squad": "packages/squad-cli/dist/cli-entry.js"
+    "squad": "index.cjs"
   },
   "files": [
     "index.cjs",
