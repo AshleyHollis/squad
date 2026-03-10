@@ -7,6 +7,7 @@
 import { resolveSquad } from '@bradygaster/squad-sdk/resolution';
 import { SquadClient } from '@bradygaster/squad-sdk/client';
 import type { SquadSession } from '@bradygaster/squad-sdk/client';
+import { resolveModel, parseCharterMarkdown, type TaskType } from '@bradygaster/squad-sdk/agents';
 import { SessionRegistry } from './sessions.js';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -29,6 +30,10 @@ export interface SpawnOptions {
   client?: SquadClient;
   /** Working directory for the session */
   teamRoot?: string;
+  /** User-specified model override (highest priority) */
+  model?: string;
+  /** Task type for automatic model selection */
+  taskType?: TaskType;
 }
 
 export interface ToolDefinition {
@@ -98,6 +103,17 @@ export async function spawnAgent(
   try {
     const systemPrompt = buildAgentPrompt(charter, { systemContext: options.systemContext });
 
+    // Resolve model using 4-layer priority: user override → charter → task-auto → default
+    const parsed = parseCharterMarkdown(charter);
+    const charterPref = parsed.modelPreference;
+    const resolved = resolveModel({
+      userOverride: options.model,
+      charterPreference: charterPref,
+      taskType: options.taskType ?? 'code',
+      agentRole: name,
+    });
+    debugLog('spawnAgent: model resolved for', name, `→ ${resolved.model} (source: ${resolved.source})`);
+
     if (!options.client) {
       // No client provided — return stub for backward compatibility
       registry.updateStatus(name, 'idle');
@@ -110,6 +126,7 @@ export async function spawnAgent(
 
     const session: SquadSession = await options.client.createSession({
       streaming: true,
+      model: resolved.model,
       systemMessage: { mode: 'append', content: systemPrompt },
       workingDirectory: teamRoot,
     });

@@ -4,6 +4,7 @@
  * Creates SDK sessions via SquadClient, sends the task, and streams the response.
  */
 import { resolveSquad } from '@bradygaster/squad-sdk/resolution';
+import { resolveModel, parseCharterMarkdown } from '@bradygaster/squad-sdk/agents';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 /** Debug logger — writes to stderr only when SQUAD_DEBUG=1. */
@@ -56,6 +57,16 @@ export async function spawnAgent(name, task, registry, options = { mode: 'sync' 
     registry.updateStatus(name, 'working');
     try {
         const systemPrompt = buildAgentPrompt(charter, { systemContext: options.systemContext });
+        // Resolve model using 4-layer priority: user override → charter → task-auto → default
+        const parsed = parseCharterMarkdown(charter);
+        const charterPref = parsed.modelPreference;
+        const resolved = resolveModel({
+            userOverride: options.model,
+            charterPreference: charterPref,
+            taskType: options.taskType ?? 'code',
+            agentRole: name,
+        });
+        debugLog('spawnAgent: model resolved for', name, `→ ${resolved.model} (source: ${resolved.source})`);
         if (!options.client) {
             // No client provided — return stub for backward compatibility
             registry.updateStatus(name, 'idle');
@@ -67,6 +78,7 @@ export async function spawnAgent(name, task, registry, options = { mode: 'sync' 
         }
         const session = await options.client.createSession({
             streaming: true,
+            model: resolved.model,
             systemMessage: { mode: 'append', content: systemPrompt },
             workingDirectory: teamRoot,
         });
