@@ -72,6 +72,22 @@ function ensureWorkspaceLinks() {
 }
 ensureWorkspaceLinks();
 
+// --- Patch broken ESM import in @github/copilot-sdk for Node 24+ ---
+// copilot-sdk@0.1.32 session.js imports 'vscode-jsonrpc/node' without .js
+// extension, which fails under Node 24+ strict ESM resolution.
+function patchCopilotSdkEsm() {
+  const sessionJs = path.join(root, 'node_modules', '@github', 'copilot-sdk', 'dist', 'session.js');
+  if (!fs.existsSync(sessionJs)) return;
+  try {
+    const content = fs.readFileSync(sessionJs, 'utf8');
+    const patched = content.replace(/from\s+["']vscode-jsonrpc\/node["']/g, 'from "vscode-jsonrpc/node.js"');
+    if (patched !== content) {
+      fs.writeFileSync(sessionJs, patched, 'utf8');
+    }
+  } catch { /* best effort */ }
+}
+patchCopilotSdkEsm();
+
 // --- Delegate CLI commands to squad-cli entry point ---
 // Commands like start, rc, remote-control, doctor, etc. are handled by
 // packages/squad-cli/dist/cli-entry.js. When installed globally from the
