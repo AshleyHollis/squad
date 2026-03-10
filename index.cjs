@@ -102,13 +102,10 @@ if (cmd === undefined || CLI_COMMANDS.has(cmd)) {
   if (!fs.existsSync(cliEntry)) {
     fatal(`CLI entry point not found: ${cliEntry}\nRun 'npm run build' first, or install with: npm install -g github:AshleyHollis/squad#ralph-specum`);
   }
-  const { spawn } = require('child_process');
-  const child = spawn(process.execPath, [cliEntry, ...process.argv.slice(2)], {
-    cwd: dest,
-    stdio: 'inherit',
+  // Dynamic import into the same process — preserves TTY/raw mode for Ink
+  import(require('url').pathToFileURL(cliEntry).href).catch((err) => {
+    fatal(`Failed to launch CLI: ${err.message}`);
   });
-  child.on('exit', (code) => process.exit(code || 0));
-  child.on('error', (err) => { fatal(`Failed to launch CLI: ${err.message}`); });
   return;
 }
 
