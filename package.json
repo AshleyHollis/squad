@@ -9,6 +9,7 @@
   },
   "files": [
     "index.cjs",
+    ".github/",
     "packages/squad-cli/dist/",
     "packages/squad-cli/package.json",
     "packages/squad-cli/src/remote-ui/",
