@@ -53,6 +53,8 @@ interface MessageStreamProps {
   agentActivities?: Map<string, string>;
   thinkingPhase?: ThinkingPhase;
   maxVisible?: number;
+  /** When true, thinking indicator shows conversation-aware phrases. */
+  hasConversation?: boolean;
 }
 
 /** Format elapsed seconds for response timestamps. */
@@ -199,6 +201,7 @@ export const MessageStream: React.FC<MessageStreamProps> = ({
   agentActivities,
   thinkingPhase,
   maxVisible = 50,
+  hasConversation = false,
 }) => {
   const visible = messages.slice(-maxVisible);
   const roleMap = new Map((agents ?? []).map(a => [a.name, a.role]));
@@ -323,6 +326,7 @@ export const MessageStream: React.FC<MessageStreamProps> = ({
           elapsedMs={elapsedMs}
           activityHint={resolvedHint}
           phase={thinkingPhase}
+          hasConversation={hasConversation}
         />
       )}
 

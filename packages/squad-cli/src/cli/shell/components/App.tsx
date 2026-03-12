@@ -311,13 +311,18 @@ export const App: React.FC<AppProps> = ({ registry, renderer, teamRoot, version,
     return undefined;
   }, [messages, processing]);
 
-  // Combine archived + current messages for Static rendering.
-  // This array only grows — archival moves items between the two source arrays
-  // but the combined list stays stable, which is required by Ink's Static tracking.
-  const staticMessages = useMemo(
-    () => [...archivedMessages, ...messages],
-    [archivedMessages, messages],
+  // True when there is prior conversation history (at least one agent response).
+  const hasConversation = useMemo(
+    () => messages.some(m => m.role === 'agent'),
+    [messages],
   );
+
+  // Only archived (overflow) messages go to Static scrollback.
+  // Current messages stay in the live region so the user can always see
+  // the recent conversation without scrolling. This prevents the
+  // "conversation vanishes" problem where every re-render forced the
+  // viewport to the bottom, hiding Static scrollback content.
+  const staticMessages = archivedMessages;
   const roleMap = useMemo(() => new Map((agents ?? []).map(a => [a.name, a.role])), [agents]);
 
   // Memoize the header box — rendered once into Static scroll buffer at the top.
@@ -447,7 +452,7 @@ export const App: React.FC<AppProps> = ({ registry, renderer, teamRoot, version,
           auto-sized when idle to avoid blank space below the agent panel. */}
       <Box flexDirection="column" {...(processing ? { height: liveContentHeight, overflow: 'hidden' as const } : {})}>
         <AgentPanel agents={agents} streamingContent={streamingContent} />
-        <MessageStream messages={[]} agents={agents} streamingContent={streamingContent} processing={processing} activityHint={activityHint || mentionHint} agentActivities={agentActivities} thinkingPhase={thinkingPhase} />
+        <MessageStream messages={messages} agents={agents} streamingContent={streamingContent} processing={processing} activityHint={activityHint || mentionHint} agentActivities={agentActivities} thinkingPhase={thinkingPhase} maxVisible={maxVisible} hasConversation={hasConversation} />
       </Box>
       {/* Fixed input box at bottom — Copilot/Claude style */}
       <Box marginTop={1} borderStyle={noColor ? undefined : 'round'} borderColor={noColor ? undefined : 'cyan'} paddingX={1}>
