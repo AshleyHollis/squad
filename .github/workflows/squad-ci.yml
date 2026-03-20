@@ -3,7 +3,7 @@ name: Squad CI
 on:
   pull_request:
     branches: [dev, preview, main, insider]
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, edited]
   push:
     branches: [dev, insider]
 
@@ -37,6 +37,24 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+
+      - name: Lint lockfile for stale workspace entries
+        run: |
+          # Detect stale nested copies of workspace packages that shadow symlinks
+          STALE=$(node -e "
+            const lock = require('./package-lock.json');
+            const pkgs = lock.packages || {};
+            const stale = Object.keys(pkgs).filter(k =>
+              k.includes('/node_modules/@bradygaster/squad-') &&
+              pkgs[k].resolved && pkgs[k].resolved.startsWith('https://')
+            );
+            if (stale.length) {
+              console.error('Stale nested workspace entries found in package-lock.json:');
+              stale.forEach(s => console.error('  ' + s));
+              console.error('Fix: delete these entries from package-lock.json and run npm install');
+              process.exit(1);
+            }
+          ")
 
       - name: Install dependencies
         run: npm ci
