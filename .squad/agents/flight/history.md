@@ -33,3 +33,18 @@ Approved PR #331 ("docs: scenario and feature guides from blog analysis") for me
 Created `.squad/skills/content-triage/SKILL.md` to codify the boundary heuristic from PR #331. Defines repeatable workflow for triaging external content (blog posts, sample repos, videos, talks) to determine what belongs in Squad's public docs vs IRL tracking. Key components: (1) "Squad Ships It" litmus test — if Squad doesn't ship the code/config, it's IRL content; (2) triage workflow triggered by `content-triage` label or external content reference in issue body; (3) output format with boundary analysis, sub-issues for PAO (doc extraction), and IRL reference entry for Scribe; (4) label convention (`content:blog`, `content:sample`, `content:video`, `content:talk`); (5) Ralph integration for routing to Flight, creating sub-issues, and notifying Scribe. Examples include Tamir blog analysis (PR #331), sample repo with ops patterns, and conference talk. Pattern prevents infrastructure docs from polluting Squad's public docs while ensuring community content accelerates adoption through proper extraction and referencing.
 
 📌 **Team update (2026-03-11T01:27:57Z):** Content triage skill finalized; "Squad Ships It" boundary heuristic codified into shared team decision (decisions.md). Remote Squad access phased rollout approved (Discussions bot → Copilot Extension → Chat bot). PR #331 boundary review pattern established as standard for all doc PRs. Triage workflow enables Flight to scale as community content accelerates.
+
+---
+
+### Issue Triage — 6 Unlabeled Issues Routed (2026-03-20)
+
+Triaged and labeled 6 unlabeled issues using routing table:
+
+- **#485 (Agent Specification PRD)** → squad:flight + squad:procedures — Architecture decision (Flight) + formal spec structure (Procedures)
+- **#481 (StorageProvider PRD)** → squad:control + squad:eecom — Type system abstraction (CONTROL) + runtime integration (EECOM)
+- **#479 (history-shadow race condition)** → squad:eecom + squad:retro — Production data loss bug; mitigation through StorageProvider atomicity
+- **#478 (Polish REPL)** → squad:vox + squad:pao — Shell UX readiness (VOX) + README documentation gate (PAO)
+- **#477 (Code Quality Linting PRD)** → squad:fido — Monorepo async/promise quality, ESLint 9 PoC ready
+- **#476 (Guide v0.4.1 update)** → squad:handbook + squad:pao — SDK patterns + documentation
+
+Key pattern: PRDs cluster around three architectural gaps (agent spec, state abstraction, quality tooling) + one production bug (#479). Guide update high community value.

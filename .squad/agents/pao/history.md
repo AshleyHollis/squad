@@ -47,3 +47,16 @@ Created docs/src/content/docs/scenarios/cross-org-auth.md covering GitHub person
 
 ### Scannability Framework (v0.8.25)
 Format selection is a scannability decision, not style preference. Paragraphs for narrative/concepts (3-4 sentences max). Bullets for scannable items (features, options, non-sequential steps). Tables for comparisons or structured reference data (config, API params). Quotes/indents for callouts/warnings. Decision test: if reader hunts for one item in a paragraph, convert to bullets/table. This framework is now a hard rule in charter under SCANNABILITY REVIEW.
+
+### Issue Triage (2026-03-22T06:44:01Z)
+
+**Flight triaged 6 unlabeled issues and filed 1 new issue.**
+
+PAO assigned:
+- **#488 (GitHub auth setup for project boards)** → squad:pao (documentation, newly filed)
+- **#478 (Polish REPL)** → squad:vox + squad:pao (shell UX readiness + README documentation gate)
+- **#476 (Guide v0.4.1 update)** → squad:handbook + squad:pao (SDK patterns + documentation)
+
+New issue #488 is documentation-focused; Fleet relabeled from squad:fido → squad:pao for proper domain ownership.
+
+📌 **Team update (2026-03-22T06:44:01Z):** Flight issued comprehensive triage. PAO owns GitHub auth docs (#488), REPL documentation gate (#478), and Guide v0.4.1 refresh (#476). High community value on Guide update. Ready to begin documentation work on next sprint.

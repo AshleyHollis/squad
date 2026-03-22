@@ -33,3 +33,15 @@ Traced complete `squad init --sdk` flow end-to-end for unified PRD. Key findings
 Implemented Flight's privacy-first adoption monitoring strategy on PR #326 branch. Moved `.squad/adoption/` → `.github/adoption/` for better GitHub integration. Stripped tracking.md to aggregate-only metrics (removed all individual repo names/URLs). Updated GitHub Action workflow (adoption-report.yml) and monitoring script (scripts/adoption-monitor.mjs) to write reports to `.github/adoption/reports/`. Removed "Built with Squad" showcase link from README.md (deferred to Tier 2 opt-in feature). This honors the principle: collect aggregate metrics via public APIs, but never publish individual repo lists without explicit consent. Test discipline: verified npm run build passes; docs-build.test.ts passed structure tests (Astro build failure unrelated to changes). Committed with clear message explaining privacy rationale.
 
 📌 **Team update (2026-03-10T12-55-49Z):** Adoption tracking Tier 1 complete and merged to decisions.md. Privacy-first architecture confirmed: aggregate metrics only, opt-in for individual repos, public showcase only when 5+ projects opt in. Append-only file governance enforced (no deletions in history.md or decisions.md). Microsoft ampersand style guide adopted for documentation.
+
+### Issue Triage (2026-03-22T06:44:01Z)
+
+**Flight triaged 6 unlabeled issues and filed 1 new issue.**
+
+EECOM assigned:
+- **#481 (StorageProvider PRD)** → squad:control + squad:eecom (type system abstraction + runtime integration)
+- **#479 (history-shadow race condition)** → squad:eecom + squad:retro (production bug; mitigation through StorageProvider atomicity)
+
+Pattern: Three architectural gaps identified (agent spec, state abstraction, quality tooling) + one production bug. StorageProvider abstraction critical for #479 atomicity fix.
+
+📌 **Team update (2026-03-22T06:44:01Z):** Flight issued comprehensive triage. EECOM owns StorageProvider PRD spec (#481) + history-shadow race mitigation (#479). Ready to begin implementation on next sprint.
