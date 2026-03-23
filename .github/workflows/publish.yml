@@ -1,4 +1,5 @@
 name: Publish to npm
+# Publishes squad-sdk and squad-cli to npm with provenance
 
 on:
   release:
