@@ -6,6 +6,7 @@
 export { detectPlatform, detectPlatformFromUrl, detectWorkItemSource, parseGitHubRemote, parseAzureDevOpsRemote, getRemoteUrl } from './detect.js';
 export { GitHubAdapter } from './github.js';
 export { AzureDevOpsAdapter } from './azure-devops.js';
+export { getAvailableWorkItemTypes, validateWorkItemType } from './azure-devops.js';
 export { PlannerAdapter, mapPlannerTaskToWorkItem } from './planner.js';
 export { getRalphScanCommands } from './ralph-commands.js';
 export { FileLogCommunicationAdapter } from './comms-file-log.js';

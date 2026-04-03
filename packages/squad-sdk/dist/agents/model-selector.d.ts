@@ -26,6 +26,8 @@ export interface ModelResolutionOptions {
     taskType: TaskType;
     /** Agent role (for context) */
     agentRole?: string;
+    /** When true, apply economy mode substitution at Layer 3/4 */
+    economyMode?: boolean;
 }
 /**
  * Result of model resolution.

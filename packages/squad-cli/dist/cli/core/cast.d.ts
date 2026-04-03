@@ -31,6 +31,15 @@ export declare function roleToEmoji(role: string): string;
  */
 export declare function parseCastResponse(response: string): CastProposal | null;
 /**
+ * Augment a parsed CastProposal with CastingEngine data if universe is recognized.
+ * Maps LLM-proposed universe names to engine universe IDs, then uses the engine to:
+ * - Allocate character names from the curated pool
+ * - Inject template personalities and backstories
+ *
+ * This is an "augment" strategy: LLM proposes roles, engine assigns names/personalities.
+ */
+export declare function augmentWithCastingEngine(proposal: CastProposal): CastProposal;
+/**
  * Create all squad agent files for a cast proposal.
  * teamRoot is the project root (parent of .squad/).
  */

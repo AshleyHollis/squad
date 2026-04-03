@@ -73,6 +73,28 @@ function assertModelPreference(value, field, builder) {
     throw new BuilderValidationError(builder, `"${field}" must be a model string or { preferred, rationale?, fallback? }`);
 }
 // ---------------------------------------------------------------------------
+// defineBudget
+// ---------------------------------------------------------------------------
+export function defineBudget(config) {
+    assertObject(config, 'defineBudget');
+    if (config.perAgentSpawn !== undefined) {
+        if (typeof config.perAgentSpawn !== 'number' || !Number.isFinite(config.perAgentSpawn) || config.perAgentSpawn <= 0) {
+            throw new BuilderValidationError('defineBudget', '"perAgentSpawn" must be a finite positive number');
+        }
+    }
+    if (config.perSession !== undefined) {
+        if (typeof config.perSession !== 'number' || !Number.isFinite(config.perSession) || config.perSession <= 0) {
+            throw new BuilderValidationError('defineBudget', '"perSession" must be a finite positive number');
+        }
+    }
+    if (config.warnAt !== undefined) {
+        if (typeof config.warnAt !== 'number' || !Number.isFinite(config.warnAt) || config.warnAt < 0 || config.warnAt > 1) {
+            throw new BuilderValidationError('defineBudget', '"warnAt" must be a finite number between 0 and 1');
+        }
+    }
+    return config;
+}
+// ---------------------------------------------------------------------------
 // defineTeam
 // ---------------------------------------------------------------------------
 /**
@@ -125,6 +147,9 @@ export function defineAgent(config) {
     assertOptionalString(config.description, 'description', 'defineAgent');
     assertOptionalString(config.charter, 'charter', 'defineAgent');
     assertModelPreference(config.model, 'model', 'defineAgent');
+    if (config.budget !== undefined) {
+        defineBudget(config.budget);
+    }
     assertOptionalArray(config.tools, 'tools', 'defineAgent');
     assertOptionalArray(config.capabilities, 'capabilities', 'defineAgent');
     if (config.status !== undefined) {
@@ -348,6 +373,9 @@ export function defineSkill(config) {
 export function defineDefaults(config) {
     assertObject(config, 'defineDefaults');
     assertModelPreference(config.model, 'model', 'defineDefaults');
+    if (config.budget !== undefined) {
+        defineBudget(config.budget);
+    }
     return config;
 }
 // ---------------------------------------------------------------------------

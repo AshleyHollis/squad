@@ -1,5 +1,5 @@
 import { jsx as _jsx, Fragment as _Fragment, jsxs as _jsxs } from "react/jsx-runtime";
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Box, Text } from 'ink';
 import { getRoleEmoji } from '../lifecycle.js';
 import { isNoColor, useTerminalWidth, useLayoutTier } from '../terminal.js';
@@ -167,40 +167,40 @@ export function wrapTableContent(content, maxWidth, tier) {
     }
     return result.join('\n');
 }
-export const MessageStream = ({ messages, agents, streamingContent, processing = false, activityHint, agentActivities, thinkingPhase, maxVisible = 50, }) => {
+export const MessageStream = ({ messages, agents, streamingContent, processing = false, activityHint, agentActivities, thinkingPhase, maxVisible = 50, hasConversation = false, }) => {
     const visible = messages.slice(-maxVisible);
-    const roleMap = new Map((agents ?? []).map(a => [a.name, a.role]));
+    const visibleOffset = Math.max(0, messages.length - maxVisible);
+    const roleMap = useMemo(() => new Map((agents ?? []).map(a => [a.name, a.role])), [agents]);
     // Message fade-in: new messages start dim for 200ms
     const fadingCount = useMessageFade(messages.length);
-    // Elapsed time tracking for the ThinkingIndicator
+    // Elapsed time tracking for the ThinkingIndicator.
+    // Only update state when the rounded seconds value changes to avoid
+    // unnecessary re-renders that cause terminal scroll flicker.
     const [elapsedMs, setElapsedMs] = useState(0);
     const processingStartRef = useRef(Date.now());
+    const lastElapsedSecRef = useRef(0);
     useEffect(() => {
         if (processing) {
             processingStartRef.current = Date.now();
+            lastElapsedSecRef.current = 0;
             setElapsedMs(0);
-            // Update once per second — reduces re-renders that cause flicker (#206)
             const timer = setInterval(() => {
-                setElapsedMs(Date.now() - processingStartRef.current);
+                const now = Date.now() - processingStartRef.current;
+                const sec = Math.floor(now / 1000);
+                if (sec !== lastElapsedSecRef.current) {
+                    lastElapsedSecRef.current = sec;
+                    setElapsedMs(now);
+                }
             }, 1000);
             return () => clearInterval(timer);
         }
         else {
             setElapsedMs(0);
+            lastElapsedSecRef.current = 0;
         }
     }, [processing]);
-    // Build activity hint: prefer explicit hint, then infer from agent @mention
-    const resolvedHint = (() => {
-        if (activityHint)
-            return activityHint;
-        const lastUser = [...messages].reverse().find(m => m.role === 'user');
-        if (lastUser) {
-            const atMatch = lastUser.content.match(/^@(\w+)/);
-            if (atMatch?.[1])
-                return `${atMatch[1]} is thinking...`;
-        }
-        return undefined;
-    })();
+    // Activity hint comes from the parent (App.tsx derives @mention hints
+    // via `mentionHint` and passes them through `activityHint`).
     // Compute response duration: time from previous user message to this agent message
     const getResponseDuration = (index) => {
         const msg = visible[index];
@@ -224,9 +224,9 @@ export const MessageStream = ({ messages, agents, streamingContent, processing =
                 const emoji = agentRole ? getRoleEmoji(agentRole) : '';
                 const duration = getResponseDuration(i);
                 const isFading = fadingCount > 0 && i >= visible.length - fadingCount;
-                return (_jsxs(React.Fragment, { children: [isNewTurn && _jsx(Separator, { marginTop: 1 }), _jsx(Box, { gap: 1, children: msg.role === 'user' ? (_jsxs(_Fragment, { children: [_jsx(Text, { color: noColor ? undefined : 'cyan', bold: true, dimColor: isFading, children: "\u276F" }), _jsx(Text, { color: noColor ? undefined : 'cyan', wrap: "wrap", dimColor: isFading, children: msg.content })] })) : msg.role === 'system' ? (_jsx(_Fragment, { children: _jsx(Text, { color: "gray", wrap: "wrap", children: msg.content }) })) : (_jsxs(_Fragment, { children: [_jsxs(Text, { color: noColor ? undefined : 'green', bold: true, dimColor: isFading, children: [emoji ? `${emoji} ` : '', (msg.agentName === 'coordinator' ? 'Squad' : msg.agentName) ?? 'agent', ":"] }), _jsx(Text, { wrap: "wrap", dimColor: isFading, children: renderMarkdownInline(wrapTableContent(msg.content, contentWidth, tier)) }), duration && _jsxs(Text, { color: "gray", children: ["(", duration, ")"] })] })) })] }, i));
+                return (_jsxs(React.Fragment, { children: [isNewTurn && _jsx(Separator, { marginTop: 1 }), msg.role === 'system' ? (_jsx(Box, { flexDirection: "column", paddingLeft: 2, children: _jsx(Text, { color: "gray", wrap: "wrap", children: msg.content }) })) : (_jsx(Box, { gap: 1, paddingLeft: msg.role === 'user' ? 0 : 2, children: msg.role === 'user' ? (_jsxs(_Fragment, { children: [_jsx(Text, { color: noColor ? undefined : 'cyan', bold: true, dimColor: isFading, children: "\u276F" }), _jsx(Text, { color: noColor ? undefined : 'cyan', wrap: "wrap", dimColor: isFading, children: msg.content })] })) : (_jsxs(_Fragment, { children: [_jsxs(Text, { color: noColor ? undefined : 'green', bold: true, dimColor: isFading, children: [emoji ? `${emoji} ` : '', (msg.agentName === 'coordinator' ? 'Squad' : msg.agentName) ?? 'agent', ":"] }), _jsx(Text, { wrap: "wrap", dimColor: isFading, children: renderMarkdownInline(wrapTableContent(msg.content, contentWidth, tier)) }), duration && _jsxs(Text, { color: "gray", children: ["(", duration, ")"] })] })) }))] }, `msg-${visibleOffset + i}`));
             }), streamingContent && streamingContent.size > 0 && (_jsx(_Fragment, { children: Array.from(streamingContent.entries()).map(([agentName, content]) => (content ? (_jsxs(Box, { gap: 1, children: [_jsxs(Text, { color: noColor ? undefined : 'green', bold: true, children: [roleMap.has(agentName)
                                     ? `${getRoleEmoji(roleMap.get(agentName))} `
-                                    : '', agentName === 'coordinator' ? 'Squad' : agentName, ":"] }), _jsx(Text, { wrap: "wrap", children: renderMarkdownInline(wrapTableContent(content, contentWidth, tier)) }), _jsx(Text, { color: noColor ? undefined : 'cyan', children: "\u258C" })] }, agentName)) : null)) })), agentActivities && agentActivities.size > 0 && (_jsx(Box, { flexDirection: "column", children: Array.from(agentActivities.entries()).map(([name, activity]) => (_jsxs(Text, { color: "gray", children: ["\u25B8 ", name, " is ", activity] }, name))) })), processing && (!streamingContent || streamingContent.size === 0) && (_jsx(ThinkingIndicator, { isThinking: true, elapsedMs: elapsedMs, activityHint: resolvedHint, phase: thinkingPhase })), processing && streamingContent && streamingContent.size > 0 && (_jsx(ThinkingIndicator, { isThinking: true, elapsedMs: elapsedMs, activityHint: `${Array.from(streamingContent.keys()).join(', ')} streaming` }))] }));
+                                    : '', agentName === 'coordinator' ? 'Squad' : agentName, ":"] }), _jsx(Text, { wrap: "wrap", children: renderMarkdownInline(wrapTableContent(content, contentWidth, tier)) }), _jsx(Text, { color: noColor ? undefined : 'cyan', children: "\u258C" })] }, agentName)) : null)) })), agentActivities && agentActivities.size > 0 && (_jsx(Box, { flexDirection: "column", children: Array.from(agentActivities.entries()).map(([name, activity]) => (_jsxs(Text, { color: "gray", children: ["\u25B8 ", name, " is ", activity] }, name))) })), processing && (!streamingContent || streamingContent.size === 0) && (_jsx(ThinkingIndicator, { isThinking: true, elapsedMs: elapsedMs, activityHint: activityHint, phase: thinkingPhase, hasConversation: hasConversation })), processing && streamingContent && streamingContent.size > 0 && (_jsx(ThinkingIndicator, { isThinking: true, elapsedMs: elapsedMs, activityHint: `${Array.from(streamingContent.keys()).join(', ')} streaming` }))] }));
 };
 //# sourceMappingURL=MessageStream.js.map

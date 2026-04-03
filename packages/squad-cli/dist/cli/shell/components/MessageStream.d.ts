@@ -13,6 +13,8 @@ interface MessageStreamProps {
     agentActivities?: Map<string, string>;
     thinkingPhase?: ThinkingPhase;
     maxVisible?: number;
+    /** When true, thinking indicator shows conversation-aware phrases. */
+    hasConversation?: boolean;
 }
 /** Format elapsed seconds for response timestamps. */
 export declare function formatDuration(start: Date, end: Date): string;

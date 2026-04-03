@@ -17,6 +17,10 @@ export class LocalSkillSource {
         this.priority = priority;
     }
     get skillsDir() {
+        const copilotDir = path.join(this.basePath, '.copilot', 'skills');
+        if (fs.existsSync(copilotDir))
+            return copilotDir;
+        // Backward compat: fall back to legacy location
         return path.join(this.basePath, '.squad', 'skills');
     }
     async listSkills() {
@@ -106,7 +110,7 @@ export class GitHubSkillSource {
         this.owner = parts[0];
         this.repoName = parts[1];
         this.branch = options?.ref;
-        this.pathPrefix = options?.pathPrefix ?? '.squad/skills';
+        this.pathPrefix = options?.pathPrefix ?? '.copilot/skills';
         this.fetcher = options?.fetcher ?? {
             async listDirectory() { throw new Error('No GitHubFetcher configured'); },
             async getFileContent() { throw new Error('No GitHubFetcher configured'); },

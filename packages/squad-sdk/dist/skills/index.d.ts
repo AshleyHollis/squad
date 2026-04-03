@@ -46,4 +46,7 @@ export declare class SkillRegistry {
      */
     loadSkill(skillId: string): string | undefined;
 }
+export * from './handler-types.js';
+export { SkillScriptLoader, resolveSkillPath } from './skill-script-loader.js';
+export type { LoadResult } from './handler-types.js';
 //# sourceMappingURL=index.d.ts.map

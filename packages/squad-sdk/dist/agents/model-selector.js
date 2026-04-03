@@ -2,6 +2,7 @@
  * Per-Agent Model Selection (M1-9) + Model Fallback (M3-5, Issue #145)
  */
 import { MODELS } from '../runtime/constants.js';
+import { applyEconomyMode } from '../config/models.js';
 /**
  * Resolve the appropriate model using the 4-layer priority system.
  *
@@ -9,8 +10,8 @@ import { MODELS } from '../runtime/constants.js';
  * @returns Resolved model with tier and fallback chain
  */
 export function resolveModel(options) {
-    const { userOverride, charterPreference, taskType } = options;
-    // Layer 1: User Override
+    const { userOverride, charterPreference, taskType, economyMode } = options;
+    // Layer 1: User Override (explicit — economy does not apply)
     if (userOverride && userOverride.trim().length > 0) {
         const tier = inferTierFromModel(userOverride);
         return {
@@ -20,7 +21,7 @@ export function resolveModel(options) {
             fallbackChain: [...MODELS.FALLBACK_CHAINS[tier]],
         };
     }
-    // Layer 2: Charter Preference
+    // Layer 2: Charter Preference (explicit — economy does not apply)
     if (charterPreference && charterPreference.trim().length > 0 && charterPreference !== 'auto') {
         const tier = inferTierFromModel(charterPreference);
         return {
@@ -30,60 +31,65 @@ export function resolveModel(options) {
             fallbackChain: [...MODELS.FALLBACK_CHAINS[tier]],
         };
     }
-    // Layer 3: Task-Aware Auto-Selection
-    const autoSelected = selectModelForTask(taskType);
+    // Layer 3: Task-Aware Auto-Selection (economy mode applies)
+    const autoSelected = selectModelForTask(taskType, economyMode);
     if (autoSelected) {
         return autoSelected;
     }
-    // Layer 4: Default
+    // Layer 4: Default (economy mode applies)
+    const defaultModel = economyMode
+        ? applyEconomyMode(MODELS.SELECTOR_DEFAULT)
+        : MODELS.SELECTOR_DEFAULT;
+    const defaultTier = inferTierFromModel(defaultModel);
     return {
-        model: MODELS.SELECTOR_DEFAULT,
-        tier: MODELS.SELECTOR_DEFAULT_TIER,
+        model: defaultModel,
+        tier: defaultTier,
         source: 'default',
-        fallbackChain: [...MODELS.FALLBACK_CHAINS[MODELS.SELECTOR_DEFAULT_TIER]],
+        fallbackChain: [...MODELS.FALLBACK_CHAINS[defaultTier]],
     };
 }
 /**
- * Select model based on task type.
+ * Select model based on task type, with optional economy mode substitution.
  *
  * @param taskType - Type of task being performed
+ * @param economyMode - When true, downgrade model to cheaper alternative
  * @returns Resolved model or undefined if no match
  */
-function selectModelForTask(taskType) {
+function selectModelForTask(taskType, economyMode) {
+    let model;
+    let tier;
     switch (taskType) {
         case 'code':
-            return {
-                model: 'claude-sonnet-4.5',
-                tier: 'standard',
-                source: 'task-auto',
-                fallbackChain: [...MODELS.FALLBACK_CHAINS.standard],
-            };
+            model = 'claude-sonnet-4.6';
+            tier = 'standard';
+            break;
         case 'prompt':
-            return {
-                model: 'claude-sonnet-4.5',
-                tier: 'standard',
-                source: 'task-auto',
-                fallbackChain: [...MODELS.FALLBACK_CHAINS.standard],
-            };
+            model = 'claude-sonnet-4.6';
+            tier = 'standard';
+            break;
         case 'visual':
-            return {
-                model: 'claude-opus-4.5',
-                tier: 'premium',
-                source: 'task-auto',
-                fallbackChain: [...MODELS.FALLBACK_CHAINS.premium],
-            };
+            model = 'claude-opus-4.6';
+            tier = 'premium';
+            break;
         case 'docs':
         case 'planning':
         case 'mechanical':
-            return {
-                model: 'claude-haiku-4.5',
-                tier: 'fast',
-                source: 'task-auto',
-                fallbackChain: [...MODELS.FALLBACK_CHAINS.fast],
-            };
+            model = 'claude-haiku-4.5';
+            tier = 'fast';
+            break;
         default:
             return undefined;
     }
+    if (economyMode) {
+        model = applyEconomyMode(model);
+        tier = inferTierFromModel(model);
+    }
+    return {
+        model,
+        tier,
+        source: 'task-auto',
+        fallbackChain: [...MODELS.FALLBACK_CHAINS[tier]],
+    };
 }
 export function inferTierFromModel(model) {
     const lowerModel = model.toLowerCase();

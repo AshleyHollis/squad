@@ -46,15 +46,24 @@ function findSquadDir(sourcePath) {
  * Read all skills from a squad directory's skills/ folder.
  */
 function readSkills(squadDir) {
-    const skillsDir = path.join(squadDir, 'skills');
-    if (!fs.existsSync(skillsDir))
+    const projectDir = path.dirname(squadDir);
+    const candidateDirs = [
+        { dir: path.join(projectDir, '.copilot', 'skills'), layout: 'nested' },
+        { dir: path.join(squadDir, 'skills'), layout: 'nested' },
+        { dir: path.join(projectDir, '.ai-team', 'skills'), layout: 'flat' },
+    ];
+    const source = candidateDirs.find(({ dir }) => fs.existsSync(dir));
+    if (!source)
         return [];
     const skills = [];
     try {
-        for (const entry of fs.readdirSync(skillsDir)) {
-            const skillFile = path.join(skillsDir, entry, 'SKILL.md');
+        for (const entry of fs.readdirSync(source.dir)) {
+            const skillFile = source.layout === 'nested'
+                ? path.join(source.dir, entry, 'SKILL.md')
+                : path.join(source.dir, entry);
             if (fs.existsSync(skillFile)) {
-                skills.push({ name: entry, content: fs.readFileSync(skillFile, 'utf8') });
+                const name = source.layout === 'nested' ? entry : path.basename(entry, '.md');
+                skills.push({ name, content: fs.readFileSync(skillFile, 'utf8') });
             }
         }
     }

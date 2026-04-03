@@ -4,10 +4,12 @@
  * CLI entry point lives in src/cli-entry.ts.
  */
 export declare const VERSION: string;
-export { resolveSquad, resolveGlobalSquadPath, ensureSquadPath, loadDirConfig, isConsultMode } from './resolution.js';
+export { resolveSquad, resolveGlobalSquadPath, resolvePersonalSquadDir, ensurePersonalSquadDir, ensureSquadPath, ensureSquadPathTriple, loadDirConfig, isConsultMode } from './resolution.js';
 export type { SquadDirConfig, ResolvedSquadPaths } from './resolution.js';
 export * from './config/index.js';
 export * from './agents/onboarding.js';
+export { resolvePersonalAgents, mergeSessionCast } from './agents/personal.js';
+export type { PersonalAgentMeta, PersonalAgentManifest } from './agents/personal.js';
 export * from './casting/index.js';
 export * from './skills/index.js';
 export { selectResponseTier, getTier } from './coordinator/response-tiers.js';
@@ -24,16 +26,19 @@ export * from './runtime/i18n.js';
 export * from './runtime/benchmarks.js';
 export * from './runtime/otel-init.js';
 export * from './runtime/otel-metrics.js';
+export * from './runtime/rework.js';
 export { getMeter, getTracer } from './runtime/otel.js';
 export { safeTimestamp } from './utils/safe-timestamp.js';
 export { EventBus as RuntimeEventBus } from './runtime/event-bus.js';
+export { type SquadManifest, type SquadContact, type AcceptedWorkType, type DiscoveredSquad, type CrossSquadIssueOptions, type CrossSquadIssueResult, type CrossSquadWorkStatus, validateManifest, readManifest, discoverSquads, discoverFromUpstreams, discoverFromRegistry, buildDelegationArgs, buildStatusCheckArgs, parseIssueStatus, formatDiscoveryTable, findSquadByName, } from './runtime/cross-squad.js';
 export * from './marketplace/index.js';
 export * from './build/index.js';
 export * from './sharing/index.js';
 export * from './upstream/index.js';
 export * from './remote/index.js';
 export * from './streams/index.js';
-export { defineTeam, defineAgent, defineRouting, defineCeremony, defineHooks, defineCasting, defineTelemetry, defineDefaults, defineSkill, defineSquad, BuilderValidationError, } from './builders/index.js';
-export type { AgentRef, ScheduleExpression, BuilderModelId, ModelPreference, DefaultsDefinition, TeamDefinition, AgentCapability, AgentDefinition, RoutingRule as BuilderRoutingRule, RoutingDefinition, CeremonyDefinition, HooksDefinition, CastingDefinition, TelemetryDefinition, SkillDefinition as BuilderSkillDefinition, SkillTool as BuilderSkillTool, SquadSDKConfig, } from './builders/index.js';
+export { defineTeam, defineAgent, defineBudget, defineRouting, defineCeremony, defineHooks, defineCasting, defineTelemetry, defineDefaults, defineSkill, defineSquad, BuilderValidationError, } from './builders/index.js';
+export type { AgentRef, ScheduleExpression, BuilderModelId, BudgetDefinition, ModelPreference, DefaultsDefinition, TeamDefinition, AgentCapability, AgentDefinition, RoutingRule as BuilderRoutingRule, RoutingDefinition, CeremonyDefinition, HooksDefinition, CastingDefinition, TelemetryDefinition, SkillDefinition as BuilderSkillDefinition, SkillTool as BuilderSkillTool, SquadSDKConfig, } from './builders/index.js';
+export * from './roles/index.js';
 export * from './platform/index.js';
 //# sourceMappingURL=index.d.ts.map

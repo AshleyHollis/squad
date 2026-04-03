@@ -2,6 +2,12 @@
  * Init command implementation — uses SDK
  * Scaffolds a new Squad project with templates, workflows, and directory structure
  */
+/**
+ * Detect if the target directory is inside a parent git repo.
+ * Returns the normalized git root path if a parent repo is detected,
+ * or null if dest IS the git root or no git repo exists.
+ */
+export declare function detectParentGitRepo(dest: string): string | null;
 /** True when animations should be suppressed (NO_COLOR, dumb term, non-TTY). */
 export declare function isInitNoColor(): boolean;
 /** Typewriter effect — falls back to instant print when animations disabled. */
@@ -18,6 +24,10 @@ export interface RunInitOptions {
     includeWorkflows?: boolean;
     /** If true, generate squad.config.ts with SDK builder syntax (default: false) */
     sdk?: boolean;
+    /** If true, use built-in base roles instead of fictional universe casting (default: false) */
+    roles?: boolean;
+    /** If true, this is a global (personal squad) init — bootstrap personal-squad/ dir */
+    isGlobal?: boolean;
 }
 /**
  * Main init command handler

@@ -57,6 +57,14 @@ export interface InitOptions {
     extractionDisabled?: boolean;
     /** Optional SubSquad definitions — generates .squad/workstreams.json when provided */
     streams?: SubSquadDefinition[];
+    /** If true, use built-in base roles with useRole() in SDK config (default: false) */
+    roles?: boolean;
+    /** ADO work item configuration — used when platform is azure-devops */
+    adoConfig?: {
+        defaultWorkItemType?: string;
+        areaPath?: string;
+        iterationPath?: string;
+    };
 }
 /**
  * Initialization result.

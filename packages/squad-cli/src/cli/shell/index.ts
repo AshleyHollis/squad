@@ -33,6 +33,7 @@ import { createSession, saveSession, loadLatestSession, type SessionData } from 
 import { parseDispatchTargets, type ParsedInput } from './router.js';
 import { agentSessionGuidance, genericGuidance, rateLimitGuidance, extractRetryAfter, formatGuidance } from './error-messages.js';
 import { parseCastResponse, createTeam, formatCastSummary, augmentWithCastingEngine, type CastProposal } from '../core/cast.js';
+import { writeEventLog } from './event-log.js';
 
 export { SessionRegistry } from './sessions.js';
 export { StreamBridge } from './stream-bridge.js';
@@ -775,6 +776,27 @@ export async function runShell(): Promise<void> {
     debugLog('coordinator accumulated (first 200 chars)', accumulated.slice(0, 200));
     const decision = parseCoordinatorResponse(accumulated);
     debugLog('coordinator decision', { type: decision.type, hasRoutes: !!(decision.routes?.length), hasDirectAnswer: !!decision.directAnswer });
+
+    // Log coordinator decision so `/logs` can surface routing problems
+    if (decision.type === 'route' || decision.type === 'multi') {
+      for (const route of decision.routes ?? []) {
+        writeEventLog(teamRoot, {
+          ts: new Date().toISOString(),
+          type: 'coordinator_routed',
+          agent: route.agent.toLowerCase(),
+          task: route.task.slice(0, 200),
+        });
+      }
+    } else {
+      // DIRECT or fallback: check whether the LLM actually used DIRECT: prefix or just ignored the format
+      const usedStructuredFormat = /^(ROUTE:|MULTI:|DIRECT:)/m.test(accumulated.trim());
+      writeEventLog(teamRoot, {
+        ts: new Date().toISOString(),
+        type: usedStructuredFormat ? 'coordinator_direct' : 'coordinator_fallback',
+        // Include the raw response on fallback so the user can see what the LLM said
+        raw: usedStructuredFormat ? undefined : accumulated.slice(0, 500),
+      });
+    }
 
     if (decision.type === 'route' && decision.routes?.length) {
       for (const route of decision.routes) {

@@ -31,6 +31,56 @@ function parseJson(raw) {
         throw new Error(`Failed to parse JSON from CLI output: ${err.message}\nRaw output: ${raw}`);
     }
 }
+/**
+ * Query the ADO process template for available work item types.
+ *
+ * Uses `az boards work-item type list` which returns the types configured
+ * for the project's process template (Agile, Scrum, CMMI, custom, etc.).
+ *
+ * Falls back to a minimal default list when the az CLI call fails
+ * (e.g. no auth, no devops extension, offline).
+ */
+export function getAvailableWorkItemTypes(org, project) {
+    const orgUrl = `https://dev.azure.com/${org}`;
+    try {
+        // Timeout after 3 s so tests and CI aren't blocked when az CLI is slow
+        // or tries to reach a non-existent org.  The catch block returns defaults.
+        const raw = execFileSync('az', [
+            'boards', 'work-item', 'type', 'list',
+            '--org', orgUrl,
+            '--project', project,
+            '--output', 'json',
+        ], { ...EXEC_OPTS, timeout: 3_000 }).trim();
+        const types = parseJson(raw);
+        return types.map((t) => ({
+            name: t.name ?? '',
+            description: t.description ?? '',
+            disabled: t.isDisabled === true,
+        }));
+    }
+    catch {
+        // Fallback: return common defaults so callers aren't empty-handed
+        return [
+            { name: 'User Story', description: 'Tracks user-facing functionality', disabled: false },
+            { name: 'Bug', description: 'Tracks a defect', disabled: false },
+            { name: 'Task', description: 'Tracks a unit of work', disabled: false },
+        ];
+    }
+}
+/**
+ * Validate that a work item type name exists in the project's process template.
+ *
+ * Returns `true` when the type is valid and not disabled, or when the type list
+ * cannot be retrieved (fail-open so offline/CI scenarios aren't blocked).
+ */
+export function validateWorkItemType(org, project, typeName) {
+    const types = getAvailableWorkItemTypes(org, project);
+    const enabledTypes = types.filter((t) => !t.disabled);
+    const names = enabledTypes.map((t) => t.name);
+    // Case-insensitive match — ADO type names are case-insensitive
+    const valid = names.some((n) => n.toLowerCase() === typeName.toLowerCase());
+    return { valid, available: names };
+}
 export class AzureDevOpsAdapter {
     org;
     project;
@@ -112,8 +162,33 @@ export class AzureDevOpsAdapter {
             url: wi._links?.html?.href ?? wi.url,
         };
     }
+    /**
+     * Query the available work item types for this adapter's work item project.
+     * Delegates to the module-level `getAvailableWorkItemTypes`.
+     */
+    getAvailableWorkItemTypes() {
+        const wiOrg = this.workItemConfig?.org ?? this.org;
+        const wiProj = this.workItemConfig?.project ?? this.project;
+        return getAvailableWorkItemTypes(wiOrg, wiProj);
+    }
+    /**
+     * Validate a work item type against the project's process template.
+     */
+    validateWorkItemType(typeName) {
+        const wiOrg = this.workItemConfig?.org ?? this.org;
+        const wiProj = this.workItemConfig?.project ?? this.project;
+        return validateWorkItemType(wiOrg, wiProj, typeName);
+    }
     async createWorkItem(options) {
         const wiType = options.type ?? this.workItemConfig?.defaultWorkItemType ?? 'User Story';
+        // Optional validation: check if the type exists in the project's process template
+        if (options.validateType) {
+            const result = this.validateWorkItemType(wiType);
+            if (!result.valid) {
+                throw new Error(`Work item type "${wiType}" is not available in this project. ` +
+                    `Available types: ${result.available.join(', ')}`);
+            }
+        }
         const fields = [
             `System.Title=${options.title}`,
         ];

@@ -18,6 +18,11 @@ export interface DoctorCheck {
 /** Detected squad layout mode. */
 export type DoctorMode = 'local' | 'remote' | 'hub';
 /**
+ * Check that Node.js is ≥22.5.0 for node:sqlite availability.
+ * Accepts an optional version string for testing.
+ */
+export declare function checkNodeVersion(nodeVersion?: string): DoctorCheck;
+/**
  * Run all doctor checks for the given working directory.
  * Returns an array of check results — never throws for check failures.
  */

@@ -4,44 +4,48 @@ import { useState, useEffect } from 'react';
 export function getTerminalWidth() {
     return Math.max(process.stdout.columns || 80, 40);
 }
-/** React hook — returns live terminal width, updates on resize. */
-export function useTerminalWidth() {
-    const [width, setWidth] = useState(getTerminalWidth());
-    useEffect(() => {
-        const onResize = () => setWidth(getTerminalWidth());
-        // Avoid MaxListenersExceededWarning in test environments with many renders
-        const prev = process.stdout.getMaxListeners?.() ?? 10;
-        if (prev <= 20)
-            process.stdout.setMaxListeners?.(prev + 10);
-        process.stdout.on('resize', onResize);
-        return () => {
-            process.stdout.off('resize', onResize);
-        };
-    }, []);
-    return width;
-}
-/** Current terminal height, clamped to a minimum of 10. */
+/**
+ * Default row count used when `process.stdout.rows` is undefined
+ * (e.g. piped output, test harnesses). 50 rows ensures the live
+ * viewport has enough room for content like /help.
+ */
+const DEFAULT_TERMINAL_ROWS = 50;
+/** Current terminal height, clamped to a minimum of 10.
+ *  Fallback of DEFAULT_TERMINAL_ROWS when rows is undefined (test/pipe environments)
+ *  ensures the live viewport has enough room for content like /help. */
 export function getTerminalHeight() {
-    return Math.max(process.stdout.rows || 24, 10);
-}
-/** React hook — returns live terminal height, updates on resize. */
-export function useTerminalHeight() {
-    const [height, setHeight] = useState(getTerminalHeight());
-    useEffect(() => {
-        const onResize = () => setHeight(getTerminalHeight());
-        const prev = process.stdout.getMaxListeners?.() ?? 10;
-        if (prev <= 20)
-            process.stdout.setMaxListeners?.(prev + 10);
-        process.stdout.on('resize', onResize);
-        return () => {
-            process.stdout.off('resize', onResize);
-        };
-    }, []);
-    return height;
+    return Math.max(process.stdout.rows || DEFAULT_TERMINAL_ROWS, 10);
 }
 /**
- * Detect terminal capabilities for cross-platform compatibility.
+ * Shared hook that subscribes to `process.stdout` resize events and
+ * returns the current value of `getter()`, debounced at 150 ms.
+ * Extracted from the formerly-duplicated useTerminalWidth / useTerminalHeight hooks.
  */
+function useTerminalDimension(getter) {
+    const [value, setValue] = useState(getter());
+    useEffect(() => {
+        let timer = null;
+        const onResize = () => {
+            if (timer)
+                clearTimeout(timer);
+            timer = setTimeout(() => setValue(getter()), 150);
+        };
+        const prev = process.stdout.getMaxListeners?.() ?? 10;
+        if (prev <= 20)
+            process.stdout.setMaxListeners?.(prev + 10);
+        process.stdout.on('resize', onResize);
+        return () => {
+            process.stdout.off('resize', onResize);
+            if (timer)
+                clearTimeout(timer);
+        };
+    }, []);
+    return value;
+}
+/** React hook — returns live terminal width, updates on resize. */
+export function useTerminalWidth() { return useTerminalDimension(getTerminalWidth); }
+/** React hook — returns live terminal height, updates on resize. */
+export function useTerminalHeight() { return useTerminalDimension(getTerminalHeight); }
 /**
  * Returns true when the environment requests no color output.
  * Respects the NO_COLOR standard (https://no-color.org/) and TERM=dumb.
@@ -50,6 +54,7 @@ export function isNoColor() {
     return (process.env['NO_COLOR'] != null && process.env['NO_COLOR'] !== '' ||
         process.env['TERM'] === 'dumb');
 }
+/** Detect terminal capabilities for cross-platform compatibility. */
 export function detectTerminal() {
     const plat = platform();
     const isTTY = Boolean(process.stdout.isTTY);
@@ -58,6 +63,10 @@ export function detectTerminal() {
         supportsColor: !noColor && isTTY && (process.env['FORCE_COLOR'] !== '0'),
         supportsUnicode: plat !== 'win32' || Boolean(process.env['WT_SESSION']),
         columns: process.stdout.columns || 80,
+        // detectTerminal uses 24 (standard VT100 default) rather than
+        // DEFAULT_TERMINAL_ROWS because this is a capability snapshot — not
+        // a live viewport sizing decision — and 24 is the safer assumption
+        // when advertising rows to callers that need a conservative baseline.
         rows: process.stdout.rows || 24,
         platform: plat,
         isWindows: plat === 'win32',

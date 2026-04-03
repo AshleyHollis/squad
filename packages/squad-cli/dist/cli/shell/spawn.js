@@ -5,6 +5,7 @@
  */
 import { resolveSquad } from '@bradygaster/squad-sdk/resolution';
 import { resolveModel, parseCharterMarkdown } from '@bradygaster/squad-sdk/agents';
+import { writeEventLog } from './event-log.js';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 /** Debug logger — writes to stderr only when SQUAD_DEBUG=1. */
@@ -55,6 +56,13 @@ export async function spawnAgent(name, task, registry, options = { mode: 'sync' 
     const role = roleMatch?.[1] ?? 'Agent';
     registry.register(name, role);
     registry.updateStatus(name, 'working');
+    const spawnStartMs = Date.now();
+    writeEventLog(teamRoot, {
+        ts: new Date().toISOString(),
+        type: 'agent_spawn_start',
+        agent: name.toLowerCase(),
+        task: task.slice(0, 200),
+    });
     try {
         const systemPrompt = buildAgentPrompt(charter, { systemContext: options.systemContext });
         // Resolve model using 4-layer priority: user override → charter → task-auto → default
@@ -70,6 +78,12 @@ export async function spawnAgent(name, task, registry, options = { mode: 'sync' 
         if (!options.client) {
             // No client provided — return stub for backward compatibility
             registry.updateStatus(name, 'idle');
+            writeEventLog(teamRoot, {
+                ts: new Date().toISOString(),
+                type: 'agent_spawn_stub',
+                agent: name.toLowerCase(),
+                durationMs: Date.now() - spawnStartMs,
+            });
             return {
                 agentName: name,
                 status: 'completed',
@@ -108,6 +122,12 @@ export async function spawnAgent(name, task, registry, options = { mode: 'sync' 
             debugLog('spawnAgent: failed to close session for', name, err);
         }
         registry.updateStatus(name, 'idle');
+        writeEventLog(teamRoot, {
+            ts: new Date().toISOString(),
+            type: 'agent_spawn_complete',
+            agent: name.toLowerCase(),
+            durationMs: Date.now() - spawnStartMs,
+        });
         return {
             agentName: name,
             status: 'completed',
@@ -118,6 +138,13 @@ export async function spawnAgent(name, task, registry, options = { mode: 'sync' 
         debugLog('spawnAgent: spawn failed for', name, error);
         registry.updateStatus(name, 'error');
         const msg = error instanceof Error ? error.message : String(error);
+        writeEventLog(teamRoot, {
+            ts: new Date().toISOString(),
+            type: 'agent_spawn_error',
+            agent: name.toLowerCase(),
+            error: msg.slice(0, 300),
+            durationMs: Date.now() - spawnStartMs,
+        });
         return {
             agentName: name,
             status: 'error',

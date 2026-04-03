@@ -9,7 +9,7 @@
 // ============================================================================
 export const MODELS = {
     /** Default model for config files and new projects (env-overridable) */
-    DEFAULT: process.env['SQUAD_DEFAULT_MODEL'] ?? 'claude-sonnet-4.5',
+    DEFAULT: process.env['SQUAD_DEFAULT_MODEL'] ?? 'claude-sonnet-4.6',
     /** Default model for model-selector Layer 4 — cost-first */
     SELECTOR_DEFAULT: 'claude-haiku-4.5',
     /** Default tier for the model-selector Layer 4 fallback */
@@ -20,11 +20,13 @@ export const MODELS = {
             'claude-opus-4.6',
             'claude-opus-4.6-fast',
             'claude-opus-4.5',
-            'claude-sonnet-4.5',
+            'claude-sonnet-4.6',
         ],
         standard: [
+            'claude-sonnet-4.6',
+            'gpt-5.4',
             'claude-sonnet-4.5',
-            'gpt-5.2-codex',
+            'gpt-5.3-codex',
             'claude-sonnet-4',
             'gpt-5.2',
         ],

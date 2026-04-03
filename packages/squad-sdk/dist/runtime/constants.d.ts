@@ -13,8 +13,8 @@ export declare const MODELS: {
     readonly SELECTOR_DEFAULT_TIER: "fast";
     /** Fallback chains by tier — ordered by preference */
     readonly FALLBACK_CHAINS: {
-        readonly premium: readonly ["claude-opus-4.6", "claude-opus-4.6-fast", "claude-opus-4.5", "claude-sonnet-4.5"];
-        readonly standard: readonly ["claude-sonnet-4.5", "gpt-5.2-codex", "claude-sonnet-4", "gpt-5.2"];
+        readonly premium: readonly ["claude-opus-4.6", "claude-opus-4.6-fast", "claude-opus-4.5", "claude-sonnet-4.6"];
+        readonly standard: readonly ["claude-sonnet-4.6", "gpt-5.4", "claude-sonnet-4.5", "gpt-5.3-codex", "claude-sonnet-4", "gpt-5.2"];
         readonly fast: readonly ["claude-haiku-4.5", "gpt-5.1-codex-mini", "gpt-4.1", "gpt-5-mini"];
     };
     /** Nuclear fallback model when all chains are exhausted */

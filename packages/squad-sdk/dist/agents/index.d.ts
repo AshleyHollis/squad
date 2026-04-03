@@ -11,6 +11,7 @@ export { resolveModel, inferTierFromModel, isTierFallbackAllowed, ModelFallbackE
 export { AgentLifecycleManager, type AgentHandle, type AgentStatus, type SpawnAgentOptions, type LifecycleManagerConfig, } from './lifecycle.js';
 export { createHistoryShadow, appendToHistory, readHistory, shadowExists, deleteHistoryShadow, type HistorySection, type ParsedHistory, } from './history-shadow.js';
 export { onboardAgent, addAgentToConfig, type OnboardOptions, type OnboardResult, } from './onboarding.js';
+export { resolvePersonalAgents, mergeSessionCast, type PersonalAgentMeta, type PersonalAgentManifest, } from './personal.js';
 export interface AgentCharter {
     /** Agent name (e.g., 'fenster', 'verbal') */
     name: string;

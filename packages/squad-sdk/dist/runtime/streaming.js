@@ -17,6 +17,8 @@ import { recordTokenUsage, recordTimeToFirstToken, recordResponseDuration, recor
  * and usage events. Aggregates token counts across all active sessions.
  */
 export class StreamingPipeline {
+    /** Cap usage history to prevent unbounded memory growth in long sessions. */
+    static MAX_USAGE_EVENTS = 1000;
     deltaHandlers = new Set();
     usageHandlers = new Set();
     reasoningHandlers = new Set();
@@ -90,6 +92,10 @@ export class StreamingPipeline {
                 break;
             case 'usage': {
                 this.usageData.push(event);
+                // Evict oldest events when history exceeds cap (FIFO)
+                if (this.usageData.length > StreamingPipeline.MAX_USAGE_EVENTS) {
+                    this.usageData = this.usageData.slice(-StreamingPipeline.MAX_USAGE_EVENTS);
+                }
                 await this.dispatchUsage(event);
                 recordTokenUsage(event);
                 // Record response duration and tokens/sec when usage arrives

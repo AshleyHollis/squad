@@ -10,10 +10,17 @@ export interface CoordinatorConfig {
     routingPath?: string;
     /** Path to team.md */
     teamPath?: string;
+    /** When true, include the base roles catalog in the init prompt. Default: false (fictional universe casting). */
+    useBaseRoles?: boolean;
 }
 /**
  * Build an Init Mode system prompt for team casting.
  * Used when team.md exists but has no roster entries.
+ *
+ * When `config.useBaseRoles` is true (opt-in via `--roles`), the prompt
+ * includes the built-in base roles catalog so the LLM maps agents to
+ * curated role IDs. Otherwise (default), the LLM casts from a fictional
+ * universe with free-form role names — the beloved casting experience.
  */
 export declare function buildInitModePrompt(config: CoordinatorConfig): string;
 /**

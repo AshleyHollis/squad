@@ -1,6 +1,6 @@
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { Box, Text, Static, useApp, useInput } from 'ink';
+import { Box, Text, Static, useApp, useInput, useStdout } from 'ink';
 import { AgentPanel } from './AgentPanel.js';
 import { MessageStream, renderMarkdownInline, formatDuration } from './MessageStream.js';
 import { InputPrompt } from './InputPrompt.js';
@@ -237,19 +237,20 @@ export const App = ({ registry, renderer, teamRoot, version, maxMessages, onRead
     const width = useTerminalWidth();
     const tier = useLayoutTier();
     const terminalHeight = useTerminalHeight();
-    const contentWidth = tier === 'wide' ? Math.min(width, 120) : tier === 'normal' ? Math.min(width, 80) : width;
-    // Budget live region height so InputPrompt is never pushed off-screen.
-    // Reserve 3 rows for InputPrompt (prompt line + hint + padding).
-    const INPUT_RESERVED_ROWS = 3;
-    const liveContentHeight = Math.max(terminalHeight - INPUT_RESERVED_ROWS, 4);
+    // Cap contentWidth at Ink's stdout columns to prevent text overflow/clipping.
+    // In tests, Ink renders at 100 columns while process.stdout.columns may differ.
+    const { stdout: inkStdout } = useStdout();
+    const renderWidth = inkStdout && 'columns' in inkStdout
+        ? inkStdout.columns ?? width
+        : width;
+    const contentWidth = Math.min(tier === 'wide' ? Math.min(width, 120) : tier === 'normal' ? Math.min(width, 80) : width, renderWidth);
     // Prefer lead/coordinator for first-run hint, fall back to first agent
     const leadAgent = welcome?.agents.find(a => a.role?.toLowerCase().includes('lead') ||
         a.role?.toLowerCase().includes('coordinator') ||
         a.role?.toLowerCase().includes('architect'))?.name ?? welcome?.agents[0]?.name;
     // Determine ThinkingIndicator phase based on SDK connection state
     const thinkingPhase = !onDispatch ? 'connecting' : 'routing';
-    // Derive @mention hint from last user message (needed because MessageStream
-    // receives messages=[] after the Static scrollback refactor).
+    // Derive @mention hint from last user message.
     const mentionHint = useMemo(() => {
         if (!processing)
             return undefined;
@@ -261,10 +262,14 @@ export const App = ({ registry, renderer, teamRoot, version, maxMessages, onRead
         }
         return undefined;
     }, [messages, processing]);
-    // Combine archived + current messages for Static rendering.
-    // This array only grows — archival moves items between the two source arrays
-    // but the combined list stays stable, which is required by Ink's Static tracking.
-    const staticMessages = useMemo(() => [...archivedMessages, ...messages], [archivedMessages, messages]);
+    // True when there is prior conversation history (at least one agent response).
+    const hasConversation = useMemo(() => messages.some(m => m.role === 'agent'), [messages]);
+    // Only archived (overflow) messages go to Static scrollback.
+    // Current messages stay in the live region so the user can always see
+    // the recent conversation without scrolling. This prevents the
+    // "conversation vanishes" problem where every re-render forced the
+    // viewport to the bottom, hiding Static scrollback content.
+    const staticMessages = archivedMessages;
     const roleMap = useMemo(() => new Map((agents ?? []).map(a => [a.name, a.role])), [agents]);
     // Memoize the header box — rendered once into Static scroll buffer at the top.
     const headerElement = useMemo(() => {
@@ -287,11 +292,24 @@ export const App = ({ registry, renderer, teamRoot, version, maxMessages, onRead
     const allStaticItems = useMemo(() => {
         const items = [{ kind: 'header', key: 'welcome-header' }];
         for (let i = 0; i < staticMessages.length; i++) {
-            items.push({ kind: 'msg', key: `${sessionId}-${i}`, msg: staticMessages[i], idx: i });
+            // Use timestamp + index-at-creation for stable keys that don't shift
+            // when new messages are added (array only grows via append)
+            const msg = staticMessages[i];
+            const stableKey = `${sessionId}-${msg.timestamp.getTime()}-${i}`;
+            items.push({ kind: 'msg', key: stableKey, msg, idx: i });
         }
         return items;
     }, [staticMessages, sessionId]);
-    return (_jsxs(Box, { flexDirection: "column", children: [_jsx(Static, { items: allStaticItems, children: (item) => {
+    // Fill the entire viewport. Ink's fullscreen clearTerminal path and
+    // trailing-newline behavior have been patched out of ink.js, so we can
+    // safely use the full terminal height without triggering scroll-to-top.
+    // logUpdate tracks exactly rootHeight lines and erases/rewrites them
+    // on each render cycle without cursor drift.
+    const rootHeight = Math.max(terminalHeight, 8);
+    // Derive maxVisible from terminal height so taller terminals show more
+    // conversation context. Reserve ~8 rows for header/input/agent-panel chrome.
+    const maxVisible = Math.max(Math.floor((terminalHeight - 8) / 3), 3);
+    return (_jsxs(Box, { flexDirection: "column", height: rootHeight, children: [_jsx(Static, { items: allStaticItems, children: (item) => {
                     if (item.kind === 'header') {
                         return (_jsxs(Box, { flexDirection: "column", marginBottom: 1, children: [headerElement, firstRunElement] }, item.key));
                     }
@@ -309,6 +327,6 @@ export const App = ({ registry, renderer, teamRoot, version, maxMessages, onRead
                         }
                     }
                     return (_jsxs(Box, { flexDirection: "column", width: contentWidth, children: [isNewTurn && tier !== 'narrow' && _jsx(Separator, { marginTop: 1 }), _jsx(Box, { gap: 1, paddingLeft: msg.role === 'user' ? 0 : 2, children: msg.role === 'user' ? (_jsxs(Box, { flexDirection: "column", children: [_jsxs(Box, { gap: 1, children: [_jsx(Text, { color: noColor ? undefined : 'cyan', bold: true, children: "\u276F" }), _jsx(Text, { color: noColor ? undefined : 'cyan', wrap: "wrap", children: msg.content.split('\n')[0] ?? '' })] }), msg.content.split('\n').slice(1).map((line, li) => (_jsx(Box, { paddingLeft: 2, children: _jsx(Text, { color: noColor ? undefined : 'cyan', wrap: "wrap", children: line }) }, li)))] })) : msg.role === 'system' ? (_jsx(Text, { dimColor: true, wrap: "wrap", children: msg.content })) : (_jsxs(_Fragment, { children: [_jsxs(Text, { color: noColor ? undefined : 'green', bold: true, children: [emoji ? `${emoji} ` : '', (msg.agentName === 'coordinator' ? 'Squad' : msg.agentName) ?? 'agent', ":"] }), _jsx(Text, { wrap: "wrap", children: renderMarkdownInline(msg.content) }), duration && _jsxs(Text, { dimColor: true, children: ["(", duration, ")"] })] })) })] }, item.key));
-                } }), _jsxs(Box, { flexDirection: "column", ...(processing ? { height: liveContentHeight, overflow: 'hidden' } : {}), children: [_jsx(AgentPanel, { agents: agents, streamingContent: streamingContent }), _jsx(MessageStream, { messages: [], agents: agents, streamingContent: streamingContent, processing: processing, activityHint: activityHint || mentionHint, agentActivities: agentActivities, thinkingPhase: thinkingPhase })] }), _jsx(Box, { marginTop: 1, borderStyle: noColor ? undefined : 'round', borderColor: noColor ? undefined : 'cyan', paddingX: 1, children: _jsx(InputPrompt, { onSubmit: handleSubmit, disabled: processing, agentNames: agents.map(a => a.name), messageCount: messages.length }) })] }));
+                } }), _jsxs(Box, { flexDirection: "column", flexGrow: 1, children: [_jsx(AgentPanel, { agents: agents, streamingContent: streamingContent }), _jsx(MessageStream, { messages: messages, agents: agents, streamingContent: streamingContent, processing: processing, activityHint: activityHint || mentionHint, agentActivities: agentActivities, thinkingPhase: thinkingPhase, maxVisible: maxVisible, hasConversation: hasConversation })] }), _jsx(Box, { marginTop: 1, borderStyle: noColor ? undefined : 'round', borderColor: noColor ? undefined : 'cyan', paddingX: 1, children: _jsx(InputPrompt, { onSubmit: handleSubmit, disabled: processing, agentNames: agents.map(a => a.name), messageCount: messages.length }) })] }));
 };
 //# sourceMappingURL=App.js.map

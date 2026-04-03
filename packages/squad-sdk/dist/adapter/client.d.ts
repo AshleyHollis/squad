@@ -6,6 +6,7 @@
  *
  * @module adapter/client
  */
+import type { EventBus } from '../runtime/event-bus.js';
 import type { SquadSessionConfig, SquadSession, SquadSessionMetadata, SquadGetAuthStatusResponse, SquadGetStatusResponse, SquadModelInfo, SquadMessageOptions, SquadClientEventType, SquadClientEvent, SquadClientEventHandler } from "./types.js";
 /**
  * Connection state for SquadClient.
@@ -59,6 +60,12 @@ export interface SquadClientOptions {
      * @default true
      */
     autoReconnect?: boolean;
+    /**
+     * Optional EventBus for telemetry auto-wiring.
+     * When provided, session `usage` events are automatically forwarded
+     * to the EventBus, enabling CostTracker and OTel integration.
+     */
+    eventBus?: EventBus;
     /**
      * Environment variables to pass to the CLI process.
      * @default process.env
@@ -227,6 +234,16 @@ export declare class SquadClient {
      * @param sessionId - ID of the session to close
      */
     closeSession(sessionId: string): Promise<void>;
+    /**
+     * Send a message and wait for the response, wrapped with OTel tracing
+     * and token metric recording.
+     *
+     * @param session - The session to send the message to
+     * @param options - Message content and delivery options
+     * @param timeout - Optional timeout in milliseconds
+     * @returns Promise that resolves with the session response
+     */
+    sendAndWait(session: SquadSession, options: SquadMessageOptions, timeout?: number): Promise<unknown>;
     /**
      * Subscribe to client-level session lifecycle events.
      */

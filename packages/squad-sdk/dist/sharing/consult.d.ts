@@ -68,7 +68,7 @@ export interface SetupConsultModeResult {
 }
 /**
  * Get the personal squad root path.
- * Returns {globalSquadPath}/.squad/
+ * Returns {globalSquadPath}/personal-squad/
  */
 export declare function getPersonalSquadRoot(): string;
 /**
@@ -213,8 +213,8 @@ export declare function logConsultation(personalSquadRoot: string, result: Extra
 /**
  * Merge staged learnings into personal squad.
  *
- * Routes skills to ~/.squad/skills/{name}/SKILL.md
- * Routes decisions to ~/.squad/decisions.md (with smart merge)
+ * Routes skills to personal squad directory via resolveGlobalSquadPath() to .copilot/skills/{name}/SKILL.md
+ * Routes decisions to decisions.md in personal squad directory (with smart merge)
  *
  * @param learnings - Staged learnings to merge
  * @param personalSquadRoot - Path to personal squad root

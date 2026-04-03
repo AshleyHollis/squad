@@ -46,6 +46,8 @@ export declare function setTelemetryTransport(fn: TelemetryTransport): void;
  * ```
  */
 export declare class TelemetryCollector {
+    /** Cap queued events to prevent unbounded memory growth. */
+    static readonly MAX_QUEUE_SIZE = 500;
     private queue;
     private config;
     constructor(config?: Partial<TelemetryConfig>);

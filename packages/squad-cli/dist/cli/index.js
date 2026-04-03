@@ -20,8 +20,10 @@ export { getPackageVersion, readInstalledVersion } from './core/version.js';
 export * from './core/workflows.js';
 export * from './core/team-md.js';
 export { runCopilot } from './commands/copilot.js';
+export { runCost } from './commands/cost.js';
 export { runDoctor, doctorCommand } from './commands/doctor.js';
 export { runExport } from './commands/export.js';
 export { runImport } from './commands/import.js';
 export { splitHistory } from './core/history-split.js';
+export { discoverCommand, delegateCommand } from './commands/cross-squad.js';
 //# sourceMappingURL=index.js.map

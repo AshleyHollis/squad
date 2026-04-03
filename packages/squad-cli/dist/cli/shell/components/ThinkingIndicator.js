@@ -29,6 +29,24 @@ export const THINKING_PHRASES = [
     'Connecting the dots',
     'Exploring possibilities',
 ];
+/** Context-aware phrases shown when conversation history exists. */
+export const CONVERSATION_PHRASES = [
+    'Reviewing conversation context',
+    'Connecting to previous work',
+    'Analyzing how this relates',
+    'Checking conversation thread',
+    'Considering prior context',
+    'Building on earlier discussion',
+    'Mapping to your session',
+    'Evaluating options',
+    'Consulting the team',
+    'Synthesizing a response',
+    'Weighing trade-offs',
+    'Gathering context',
+    'Crafting a plan',
+    'Connecting the dots',
+    'Reading the codebase',
+];
 /** Map phase to its default label. */
 function phaseLabel(phase) {
     switch (phase) {
@@ -54,7 +72,7 @@ function formatElapsed(ms) {
 }
 /** Static dots for NO_COLOR mode (no animation). */
 const STATIC_SPINNER = '...';
-export const ThinkingIndicator = ({ isThinking, elapsedMs, activityHint, phase = 'routing', }) => {
+export const ThinkingIndicator = ({ isThinking, elapsedMs, activityHint, phase = 'routing', hasConversation = false, }) => {
     const noColor = isNoColor();
     const [frame, setFrame] = useState(0);
     const [phraseIndex, setPhraseIndex] = useState(0);
@@ -67,6 +85,7 @@ export const ThinkingIndicator = ({ isThinking, elapsedMs, activityHint, phase =
         }, 120);
         return () => clearInterval(timer);
     }, [isThinking, noColor]);
+    const phrases = hasConversation ? CONVERSATION_PHRASES : THINKING_PHRASES;
     // Rotate thinking phrases every 3 seconds
     useEffect(() => {
         if (!isThinking) {
@@ -74,10 +93,10 @@ export const ThinkingIndicator = ({ isThinking, elapsedMs, activityHint, phase =
             return;
         }
         const timer = setInterval(() => {
-            setPhraseIndex(i => (i + 1) % THINKING_PHRASES.length);
+            setPhraseIndex(i => (i + 1) % phrases.length);
         }, 3000);
         return () => clearInterval(timer);
-    }, [isThinking]);
+    }, [isThinking, phrases]);
     // Reset frame when thinking starts
     useEffect(() => {
         if (isThinking) {
@@ -91,7 +110,7 @@ export const ThinkingIndicator = ({ isThinking, elapsedMs, activityHint, phase =
     const elapsedStr = formatElapsed(elapsedMs);
     const spinnerChar = noColor ? STATIC_SPINNER : (SPINNER_FRAMES[frame] ?? '⠋');
     // Resolve the display label: activity hint > rotating phrase > phase label
-    const displayLabel = activityHint ?? (phase === 'connecting' ? phaseLabel(phase) : `${THINKING_PHRASES[phraseIndex]}...`);
+    const displayLabel = activityHint ?? (phase === 'connecting' ? phaseLabel(phase) : `${phrases[phraseIndex]}...`);
     // NO_COLOR: no color props, use text labels
     if (noColor) {
         return (_jsxs(Box, { gap: 1, children: [_jsx(Text, { children: spinnerChar }), _jsx(Text, { children: displayLabel }), elapsedStr ? _jsxs(Text, { children: ["(", elapsedStr, ")"] }) : null] }));

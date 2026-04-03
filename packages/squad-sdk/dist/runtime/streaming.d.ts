@@ -62,6 +62,8 @@ export interface AgentUsage {
  * and usage events. Aggregates token counts across all active sessions.
  */
 export declare class StreamingPipeline {
+    /** Cap usage history to prevent unbounded memory growth in long sessions. */
+    static readonly MAX_USAGE_EVENTS = 1000;
     private deltaHandlers;
     private usageHandlers;
     private reasoningHandlers;

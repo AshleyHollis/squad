@@ -33,6 +33,8 @@ export function setTelemetryTransport(fn) {
  * ```
  */
 export class TelemetryCollector {
+    /** Cap queued events to prevent unbounded memory growth. */
+    static MAX_QUEUE_SIZE = 500;
     queue = [];
     config;
     constructor(config) {
@@ -76,6 +78,10 @@ export class TelemetryCollector {
             timestamp: event.timestamp ?? Date.now(),
         };
         this.queue.push(stored);
+        // Evict oldest events when queue exceeds cap (FIFO)
+        if (this.queue.length > TelemetryCollector.MAX_QUEUE_SIZE) {
+            this.queue = this.queue.slice(-TelemetryCollector.MAX_QUEUE_SIZE);
+        }
     }
     /**
      * Send all queued events via the configured transport, then clear the queue.

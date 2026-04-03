@@ -183,6 +183,59 @@ export function recordTokensPerSecond(tokensPerSec) {
     const m = ensureLatencyMetrics();
     m.tokensPerSecGauge.record(tokensPerSec);
 }
+let _reworkMetrics;
+function ensureReworkMetrics() {
+    if (!_reworkMetrics) {
+        const meter = getMeter('squad-sdk');
+        _reworkMetrics = {
+            rateGauge: meter.createGauge('squad.rework.rate', {
+                description: 'Current rework rate percentage',
+                unit: '%',
+            }),
+            cyclesHistogram: meter.createHistogram('squad.rework.cycles', {
+                description: 'Review cycles per PR',
+            }),
+            rejectionRateGauge: meter.createGauge('squad.rework.rejection_rate', {
+                description: 'Percentage of PRs with changes requested',
+                unit: '%',
+            }),
+            timeHistogram: meter.createHistogram('squad.rework.time_ms', {
+                description: 'Time spent in rework in milliseconds',
+                unit: 'ms',
+            }),
+        };
+    }
+    return _reworkMetrics;
+}
+/** Record rework metrics for a single PR analysis result. */
+export function recordReworkMetrics(result) {
+    const m = ensureReworkMetrics();
+    const attrs = {
+        'pr.number': result.number,
+        'pr.author': result.author,
+    };
+    m.rateGauge.record(result.reworkRate, attrs);
+    m.cyclesHistogram.record(result.reviewCycles, attrs);
+    if (result.reworkTimeMs !== null) {
+        m.timeHistogram.record(result.reworkTimeMs, attrs);
+    }
+}
+/** Record aggregate rework summary metrics across multiple PRs. */
+export function recordReworkSummary(summary) {
+    const m = ensureReworkMetrics();
+    if (summary.avgReworkRate != null) {
+        m.rateGauge.record(summary.avgReworkRate, { scope: 'summary' });
+    }
+    if (summary.rejectionRate != null) {
+        m.rejectionRateGauge.record(summary.rejectionRate, { scope: 'summary' });
+    }
+    if (summary.avgReviewCycles != null) {
+        m.cyclesHistogram.record(summary.avgReviewCycles, { scope: 'summary' });
+    }
+    if (summary.avgReworkTimeHours != null) {
+        m.timeHistogram.record(summary.avgReworkTimeHours * 3_600_000, { scope: 'summary' });
+    }
+}
 // ============================================================================
 // Reset (for testing)
 // ============================================================================
@@ -192,5 +245,6 @@ export function _resetMetrics() {
     _agentMetrics = undefined;
     _sessionPoolMetrics = undefined;
     _latencyMetrics = undefined;
+    _reworkMetrics = undefined;
 }
 //# sourceMappingURL=otel-metrics.js.map

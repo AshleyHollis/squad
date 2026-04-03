@@ -8,6 +8,7 @@ import type { ShellMessage } from './types.js';
 import path from 'node:path';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { runNapSync, formatNapReport } from '../core/nap.js';
+import { readRecentEvents } from './event-log.js';
 
 export interface CommandContext {
   registry: SessionRegistry;
@@ -65,10 +66,12 @@ export function executeCommand(
       return { handled: true, output: context.version ?? 'unknown' };
     case 'nap':
       return handleNap(args, context);
+    case 'logs':
+      return handleLogs(args, context);
     case 'init':
       return handleInit(args, context);
     default: {
-      const known = ['status', 'history', 'clear', 'help', 'quit', 'exit', 'agents', 'sessions', 'resume', 'version', 'nap', 'init'];
+      const known = ['status', 'history', 'clear', 'help', 'quit', 'exit', 'agents', 'sessions', 'resume', 'version', 'nap', 'logs', 'init'];
       const suggestion = known.find(k => k.startsWith(command.slice(0, 2)));
       const hint = suggestion ? ` Did you mean /${suggestion}?` : '';
       return { handled: false, output: `Unknown command: /${command}.${hint} Type /help for commands.` };
@@ -143,6 +146,7 @@ function handleHelp(args: string[]): CommandResult {
         '/agents — List team members',
         '/sessions — Past sessions',
         '/resume <id> — Restore session by ID prefix',
+        '/logs [N] — Recent agent events (default 20)',
         '/init [--roles] [prompt] — Set up your team',
         '/nap [--deep] [--dry-run] — Context hygiene',
         '/version — Show version',
@@ -167,6 +171,7 @@ function handleHelp(args: string[]): CommandResult {
       '  /agents             — List all team members',
       '  /sessions           — List saved sessions',
       '  /resume <id>        — Restore a past session by ID prefix',
+      '  /logs [N]           — Show recent agent events (spawn, errors, routing) — default 20',
       '  /init [--roles] [p] — Set up your team (add --roles for base role catalog)',
       '  /nap [--deep]       — Context hygiene (compress, prune, archive)',
       '  /version            — Show version',
@@ -232,6 +237,65 @@ function handleNap(args: string[], context: CommandContext): CommandResult {
     const detail = err instanceof Error ? err.message : String(err);
     return { handled: true, output: `Nap failed: ${detail}\nRun \`squad nap\` from the CLI for details.` };
   }
+}
+
+function handleLogs(args: string[], context: CommandContext): CommandResult {
+  const limitArg = args[0] ? parseInt(args[0], 10) : NaN;
+  const limit = isNaN(limitArg) ? 20 : limitArg;
+  const events = readRecentEvents(context.teamRoot, limit);
+
+  if (events.length === 0) {
+    return {
+      handled: true,
+      output: [
+        'No events logged yet.',
+        '',
+        'Events are recorded to .squad/log/squad-events.jsonl as agents run.',
+        'For verbose real-time output: SQUAD_DEBUG=1 squad',
+      ].join('\n'),
+    };
+  }
+
+  const TYPE_ICON: Record<string, string> = {
+    coordinator_routed:   '📌',
+    coordinator_direct:   '💬',
+    coordinator_fallback: '⚠️ ',
+    agent_spawn_start:    '▶ ',
+    agent_spawn_complete: '✓ ',
+    agent_spawn_error:    '✗ ',
+    agent_spawn_stub:     '⚠️ ',
+  };
+
+  const lines = events.map(e => {
+    const time = new Date(e.ts).toLocaleTimeString();
+    const icon = TYPE_ICON[e.type] ?? '  ';
+    const agent = e.agent ? ` [${e.agent}]` : '';
+    const ms = e.durationMs != null ? ` (${e.durationMs}ms)` : '';
+    let detail = '';
+    if (e.error) detail = ` — ${e.error.slice(0, 80)}`;
+    else if (e.task) detail = ` — ${e.task.slice(0, 60)}${e.task.length > 60 ? '...' : ''}`;
+    return `  [${time}] ${icon} ${e.type}${agent}${ms}${detail}`;
+  });
+
+  // Surface any fallback events prominently
+  const fallbacks = events.filter(e => e.type === 'coordinator_fallback');
+  const hint = fallbacks.length > 0
+    ? [
+        '',
+        `⚠️  ${fallbacks.length} coordinator_fallback event${fallbacks.length > 1 ? 's' : ''} detected.`,
+        '   The coordinator responded without ROUTE:/MULTI:/DIRECT: format — no agent was dispatched.',
+        '   Last fallback response preview:',
+        `   "${(fallbacks[fallbacks.length - 1]?.raw ?? '').slice(0, 120).replace(/\n/g, ' ')}..."`,
+        '',
+        '   Try rephrasing your request, or check routing.md for routing rules.',
+        '   For full debug output: SQUAD_DEBUG=1 squad',
+      ].join('\n')
+    : '';
+
+  return {
+    handled: true,
+    output: `Last ${events.length} event${events.length !== 1 ? 's' : ''}:\n${lines.join('\n')}${hint}`,
+  };
 }
 
 function handleInit(args: string[], context: CommandContext): CommandResult {

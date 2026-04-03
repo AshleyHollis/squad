@@ -9,6 +9,7 @@
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { safeTimestamp } from '../utils/safe-timestamp.js';
 export class FileLogCommunicationAdapter {
     squadRoot;
     channel = 'file-log';
@@ -21,7 +22,7 @@ export class FileLogCommunicationAdapter {
         }
     }
     async postUpdate(options) {
-        const timestamp = new Date().toISOString().replace(/:/g, '-').replace(/\.\d+Z$/, 'Z');
+        const timestamp = safeTimestamp();
         const slug = options.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40);
         const filename = `${timestamp}-${slug}.md`;
         const filepath = join(this.commsDir, filename);

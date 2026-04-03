@@ -37,6 +37,8 @@ export interface ResolvedSquadPaths {
     projectDir: string;
     /** Team identity root (agents, casting, skills) */
     teamDir: string;
+    /** User's personal squad dir, null if not found or disabled */
+    personalDir: string | null;
     config: SquadDirConfig | null;
     name: '.squad' | '.ai-team';
     isLegacy: boolean;
@@ -44,10 +46,14 @@ export interface ResolvedSquadPaths {
 /**
  * Walk up the directory tree from `startDir` looking for a `.squad/` directory.
  *
- * Stops at the repository root (the directory containing `.git`).
+ * Stops at the repository root (the directory containing `.git` as a directory).
+ * When `.git` is a **file** (git worktree), falls back to the main checkout strategy:
+ * reads the `gitdir:` pointer, resolves the main checkout path, and checks there.
  * Returns the **absolute path** to the `.squad/` directory, or `null` if none is found.
  *
- * Handles nested repos, worktrees (`.git` file pointing elsewhere), and symlinks.
+ * Resolution order (worktree-local strategy first, main-checkout strategy second):
+ * 1. Walk up from `startDir` checking for `.squad/` — stops at `.git` directory boundary
+ * 2. If `.git` is a file (worktree), check the main checkout for `.squad/`
  *
  * @param startDir - Directory to start searching from. Defaults to `process.cwd()`.
  * @returns Absolute path to `.squad/` or `null`.
@@ -89,6 +95,25 @@ export declare function resolveSquadPaths(startDir?: string): ResolvedSquadPaths
  */
 export declare function resolveGlobalSquadPath(): string;
 /**
+ * Resolves the user's personal squad directory.
+ * Returns null if SQUAD_NO_PERSONAL is set or directory doesn't exist.
+ *
+ * Platform paths:
+ * - Windows: %APPDATA%/squad/personal-squad
+ * - macOS: ~/Library/Application Support/squad/personal-squad
+ * - Linux: $XDG_CONFIG_HOME/squad/personal-squad or ~/.config/squad/personal-squad
+ */
+export declare function resolvePersonalSquadDir(): string | null;
+/**
+ * Ensure the user's personal squad directory exists with the expected structure.
+ * Creates `personal-squad/agents/` and `personal-squad/config.json` if missing.
+ *
+ * Idempotent — safe to call multiple times.
+ *
+ * @returns Absolute path to the personal squad directory.
+ */
+export declare function ensurePersonalSquadDir(): string;
+/**
  * Validate that a file path is within `.squad/` or the system temp directory.
  *
  * Use this guard before writing any scratch/temp/state files to ensure Squad
@@ -111,6 +136,12 @@ export declare function ensureSquadPath(filePath: string, squadRoot: string): st
  * @throws If filePath is outside both roots and not in the system temp directory.
  */
 export declare function ensureSquadPathDual(filePath: string, projectDir: string, teamDir: string): string;
+/**
+ * Validates a file path is inside one of three allowed directories:
+ * projectDir, teamDir, personalDir, or system temp.
+ * Extends ensureSquadPathDual() for triple-root (project + team + personal).
+ */
+export declare function ensureSquadPathTriple(filePath: string, projectDir: string, teamDir: string, personalDir: string | null): string;
 /**
  * ensureSquadPath that works with resolved dual-root paths.
  * Convenience wrapper around ensureSquadPathDual.

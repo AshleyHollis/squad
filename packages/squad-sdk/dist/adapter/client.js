@@ -8,7 +8,8 @@
  */
 import { CopilotClient } from "@github/copilot-sdk";
 import { trace, SpanStatusCode } from '../runtime/otel-api.js';
-import { recordSessionCreated, recordSessionClosed, recordSessionError } from '../runtime/otel-metrics.js';
+import { recordSessionCreated, recordSessionClosed, recordSessionError, recordTokenUsage } from '../runtime/otel-metrics.js';
+import { estimateCost } from '../config/models.js';
 const tracer = trace.getTracer('squad-sdk');
 /**
  * Adapts @github/copilot-sdk CopilotSession to our SquadSession interface.
@@ -156,6 +157,7 @@ export class SquadClient {
             useLoggedInUser: options.useLoggedInUser ?? (options.githubToken ? false : true),
             maxReconnectAttempts: options.maxReconnectAttempts ?? 3,
             reconnectDelayMs: options.reconnectDelayMs ?? 1000,
+            eventBus: options.eventBus,
         };
         this.client = new CopilotClient({
             cliPath: this.options.cliPath,
@@ -308,6 +310,28 @@ export class SquadClient {
                     span.setAttribute('session.id', result.sessionId);
                 }
                 recordSessionCreated();
+                // Auto-forward usage events to EventBus when one is configured
+                if (this.options.eventBus) {
+                    const bus = this.options.eventBus;
+                    const sid = result.sessionId;
+                    result.on('usage', (event) => {
+                        const inputTokens = typeof event['inputTokens'] === 'number' ? event['inputTokens'] : 0;
+                        const outputTokens = typeof event['outputTokens'] === 'number' ? event['outputTokens'] : 0;
+                        const model = typeof event['model'] === 'string' ? event['model'] : 'unknown';
+                        const cost = estimateCost(model, inputTokens, outputTokens);
+                        void bus.emit({
+                            type: 'session:message',
+                            sessionId: sid,
+                            payload: {
+                                inputTokens,
+                                outputTokens,
+                                model,
+                                estimatedCost: cost,
+                            },
+                            timestamp: new Date(),
+                        });
+                    });
+                }
                 return result;
             }
             catch (error) {
@@ -576,6 +600,7 @@ export class SquadClient {
         let firstTokenRecorded = false;
         let outputTokens = 0;
         let inputTokens = 0;
+        let model = 'unknown';
         const origOn = session.on.bind(session);
         // Wire temporary event listener for stream tracking
         const streamListener = (event) => {
@@ -586,6 +611,7 @@ export class SquadClient {
             if (event.type === 'usage') {
                 inputTokens = typeof event['inputTokens'] === 'number' ? event['inputTokens'] : 0;
                 outputTokens = typeof event['outputTokens'] === 'number' ? event['outputTokens'] : 0;
+                model = typeof event['model'] === 'string' ? event['model'] : 'unknown';
             }
         };
         origOn('message_delta', streamListener);
@@ -597,6 +623,19 @@ export class SquadClient {
             streamSpan.setAttribute('tokens.input', inputTokens);
             streamSpan.setAttribute('tokens.output', outputTokens);
             streamSpan.setAttribute('duration_ms', durationMs);
+            // Record token usage in OTel metrics (not just span attributes)
+            if (inputTokens > 0 || outputTokens > 0) {
+                const usageEvent = {
+                    type: 'usage',
+                    sessionId: session.sessionId,
+                    model,
+                    inputTokens,
+                    outputTokens,
+                    estimatedCost: estimateCost(model, inputTokens, outputTokens),
+                    timestamp: new Date(),
+                };
+                recordTokenUsage(usageEvent);
+            }
         }
         catch (err) {
             streamSpan.addEvent('stream_error');
@@ -637,6 +676,67 @@ export class SquadClient {
         }
         finally {
             span.end();
+        }
+    }
+    /**
+     * Send a message and wait for the response, wrapped with OTel tracing
+     * and token metric recording.
+     *
+     * @param session - The session to send the message to
+     * @param options - Message content and delivery options
+     * @param timeout - Optional timeout in milliseconds
+     * @returns Promise that resolves with the session response
+     */
+    async sendAndWait(session, options, timeout) {
+        const span = tracer.startSpan('squad.session.sendAndWait');
+        span.setAttribute('session.id', session.sessionId);
+        span.setAttribute('prompt.length', options.prompt.length);
+        let inputTokens = 0;
+        let outputTokens = 0;
+        let model = 'unknown';
+        const usageListener = (event) => {
+            if (event.type === 'usage') {
+                inputTokens = typeof event['inputTokens'] === 'number' ? event['inputTokens'] : 0;
+                outputTokens = typeof event['outputTokens'] === 'number' ? event['outputTokens'] : 0;
+                model = typeof event['model'] === 'string' ? event['model'] : 'unknown';
+            }
+        };
+        session.on('usage', usageListener);
+        try {
+            if (!session.sendAndWait) {
+                throw new Error('Session does not support sendAndWait()');
+            }
+            const result = await session.sendAndWait(options, timeout);
+            span.setAttribute('tokens.input', inputTokens);
+            span.setAttribute('tokens.output', outputTokens);
+            // Record token usage in OTel metrics
+            if (inputTokens > 0 || outputTokens > 0) {
+                const usageEvent = {
+                    type: 'usage',
+                    sessionId: session.sessionId,
+                    model,
+                    inputTokens,
+                    outputTokens,
+                    estimatedCost: estimateCost(model, inputTokens, outputTokens),
+                    timestamp: new Date(),
+                };
+                recordTokenUsage(usageEvent);
+            }
+            return result;
+        }
+        catch (err) {
+            span.setStatus({ code: SpanStatusCode.ERROR, message: err instanceof Error ? err.message : String(err) });
+            span.recordException(err instanceof Error ? err : new Error(String(err)));
+            throw err;
+        }
+        finally {
+            span.end();
+            try {
+                session.off('usage', usageListener);
+            }
+            catch {
+                // session may not support off — ignore
+            }
         }
     }
     on(eventTypeOrHandler, handler) {

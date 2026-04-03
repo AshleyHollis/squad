@@ -29,7 +29,7 @@ export type { SessionData, SessionSummary } from './session-store.js';
 export { App } from './components/App.js';
 export type { ShellApi, AppProps } from './components/App.js';
 export { ErrorBoundary } from './components/ErrorBoundary.js';
-export { sdkDisconnectGuidance, teamConfigGuidance, agentSessionGuidance, genericGuidance, formatGuidance, } from './error-messages.js';
+export { sdkDisconnectGuidance, teamConfigGuidance, agentSessionGuidance, genericGuidance, rateLimitGuidance, extractRetryAfter, timeoutGuidance, unknownCommandGuidance, formatGuidance, } from './error-messages.js';
 export type { ErrorGuidance } from './error-messages.js';
 export { enableShellMetrics, recordShellSessionDuration, recordAgentResponseLatency, recordShellError, isShellTelemetryEnabled, _resetShellMetrics, } from './shell-metrics.js';
 /** Options for ghost response retry. */

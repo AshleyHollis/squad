@@ -6,6 +6,8 @@
  *
  * @module config/models
  */
+import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { join } from 'path';
 /**
  * Full model catalog from squad.agent.md.
  */
@@ -19,7 +21,8 @@ export const MODEL_CATALOG = [
         vision: true,
         useCases: ['architecture proposals', 'security audits', 'complex design'],
         cost: 10,
-        speed: 3
+        speed: 3,
+        pricing: { inputPerToken: 0.000015, outputPerToken: 0.000075 },
     },
     {
         id: 'claude-opus-4.6-fast',
@@ -29,7 +32,8 @@ export const MODEL_CATALOG = [
         vision: true,
         useCases: ['architecture proposals', 'urgent reviews'],
         cost: 9,
-        speed: 6
+        speed: 6,
+        pricing: { inputPerToken: 0.000015, outputPerToken: 0.000075 },
     },
     {
         id: 'claude-opus-4.5',
@@ -39,9 +43,21 @@ export const MODEL_CATALOG = [
         vision: true,
         useCases: ['architecture proposals', 'reviewer gates'],
         cost: 9,
-        speed: 3
+        speed: 3,
+        pricing: { inputPerToken: 0.000015, outputPerToken: 0.000075 },
     },
     // Standard tier - balanced quality, speed, cost
+    {
+        id: 'claude-sonnet-4.6',
+        tier: 'standard',
+        provider: 'anthropic',
+        family: 'claude',
+        vision: true,
+        useCases: ['code generation', 'test writing', 'refactoring', 'prompt engineering'],
+        cost: 5,
+        speed: 7,
+        pricing: { inputPerToken: 0.000003, outputPerToken: 0.000015 },
+    },
     {
         id: 'claude-sonnet-4.5',
         tier: 'standard',
@@ -50,7 +66,8 @@ export const MODEL_CATALOG = [
         vision: true,
         useCases: ['code generation', 'test writing', 'refactoring'],
         cost: 5,
-        speed: 7
+        speed: 7,
+        pricing: { inputPerToken: 0.000003, outputPerToken: 0.000015 },
     },
     {
         id: 'claude-sonnet-4',
@@ -59,7 +76,28 @@ export const MODEL_CATALOG = [
         family: 'claude',
         useCases: ['code generation', 'documentation'],
         cost: 4,
-        speed: 7
+        speed: 7,
+        pricing: { inputPerToken: 0.000003, outputPerToken: 0.000015 },
+    },
+    {
+        id: 'gpt-5.4',
+        tier: 'standard',
+        provider: 'openai',
+        family: 'gpt',
+        useCases: ['general purpose', 'code generation', 'analysis'],
+        cost: 6,
+        speed: 7,
+        pricing: { inputPerToken: 0.000005, outputPerToken: 0.000015 },
+    },
+    {
+        id: 'gpt-5.3-codex',
+        tier: 'standard',
+        provider: 'openai',
+        family: 'gpt',
+        useCases: ['heavy code generation', 'multi-file refactors'],
+        cost: 5,
+        speed: 6,
+        pricing: { inputPerToken: 0.0000025, outputPerToken: 0.00001 },
     },
     {
         id: 'gpt-5.2-codex',
@@ -68,7 +106,8 @@ export const MODEL_CATALOG = [
         family: 'gpt',
         useCases: ['heavy code generation', 'multi-file refactors'],
         cost: 5,
-        speed: 6
+        speed: 6,
+        pricing: { inputPerToken: 0.0000025, outputPerToken: 0.00001 },
     },
     {
         id: 'gpt-5.2',
@@ -77,7 +116,8 @@ export const MODEL_CATALOG = [
         family: 'gpt',
         useCases: ['general coding', 'analysis'],
         cost: 5,
-        speed: 6
+        speed: 6,
+        pricing: { inputPerToken: 0.0000025, outputPerToken: 0.00001 },
     },
     {
         id: 'gpt-5.1-codex-max',
@@ -86,7 +126,8 @@ export const MODEL_CATALOG = [
         family: 'gpt',
         useCases: ['complex implementation', 'large codebases'],
         cost: 6,
-        speed: 5
+        speed: 5,
+        pricing: { inputPerToken: 0.0000025, outputPerToken: 0.00001 },
     },
     {
         id: 'gpt-5.1-codex',
@@ -95,7 +136,8 @@ export const MODEL_CATALOG = [
         family: 'gpt',
         useCases: ['code generation', 'implementation'],
         cost: 5,
-        speed: 6
+        speed: 6,
+        pricing: { inputPerToken: 0.0000025, outputPerToken: 0.00001 },
     },
     {
         id: 'gpt-5.1',
@@ -104,7 +146,8 @@ export const MODEL_CATALOG = [
         family: 'gpt',
         useCases: ['general purpose', 'analysis'],
         cost: 5,
-        speed: 6
+        speed: 6,
+        pricing: { inputPerToken: 0.0000025, outputPerToken: 0.00001 },
     },
     {
         id: 'gpt-5',
@@ -113,7 +156,8 @@ export const MODEL_CATALOG = [
         family: 'gpt',
         useCases: ['general purpose'],
         cost: 5,
-        speed: 6
+        speed: 6,
+        pricing: { inputPerToken: 0.0000025, outputPerToken: 0.00001 },
     },
     {
         id: 'gemini-3-pro-preview',
@@ -122,7 +166,8 @@ export const MODEL_CATALOG = [
         family: 'gemini',
         useCases: ['code reviews', 'second opinion', 'diversity'],
         cost: 5,
-        speed: 7
+        speed: 7,
+        pricing: { inputPerToken: 0.00000125, outputPerToken: 0.00001 },
     },
     // Fast tier - lowest cost, fastest, good enough quality
     {
@@ -132,7 +177,8 @@ export const MODEL_CATALOG = [
         family: 'claude',
         useCases: ['boilerplate', 'changelogs', 'simple fixes'],
         cost: 2,
-        speed: 9
+        speed: 9,
+        pricing: { inputPerToken: 0.0000008, outputPerToken: 0.000004 },
     },
     {
         id: 'gpt-5.1-codex-mini',
@@ -141,7 +187,8 @@ export const MODEL_CATALOG = [
         family: 'gpt',
         useCases: ['scaffolding', 'test boilerplate'],
         cost: 2,
-        speed: 9
+        speed: 9,
+        pricing: { inputPerToken: 0.0000003, outputPerToken: 0.0000012 },
     },
     {
         id: 'gpt-5-mini',
@@ -150,7 +197,8 @@ export const MODEL_CATALOG = [
         family: 'gpt',
         useCases: ['typo fixes', 'renames', 'simple tasks'],
         cost: 1,
-        speed: 10
+        speed: 10,
+        pricing: { inputPerToken: 0.00000015, outputPerToken: 0.0000006 },
     },
     {
         id: 'gpt-4.1',
@@ -159,15 +207,16 @@ export const MODEL_CATALOG = [
         family: 'gpt',
         useCases: ['lightweight tasks', 'triage'],
         cost: 2,
-        speed: 9
+        speed: 9,
+        pricing: { inputPerToken: 0.0000002, outputPerToken: 0.0000008 },
     }
 ];
 /**
  * Default fallback chains per tier from squad.agent.md.
  */
 export const DEFAULT_FALLBACK_CHAINS = {
-    premium: ['claude-opus-4.6', 'claude-opus-4.6-fast', 'claude-opus-4.5', 'claude-sonnet-4.5'],
-    standard: ['claude-sonnet-4.5', 'gpt-5.2-codex', 'claude-sonnet-4', 'gpt-5.2'],
+    premium: ['claude-opus-4.6', 'claude-opus-4.6-fast', 'claude-opus-4.5', 'claude-sonnet-4.6'],
+    standard: ['claude-sonnet-4.6', 'gpt-5.4', 'claude-sonnet-4.5', 'gpt-5.3-codex', 'claude-sonnet-4', 'gpt-5.2'],
     fast: ['claude-haiku-4.5', 'gpt-5.1-codex-mini', 'gpt-4.1', 'gpt-5-mini']
 };
 /**
@@ -350,5 +399,267 @@ export function getFallbackChain(tier) {
  */
 export function isModelAvailable(id) {
     return defaultRegistry.isModelAvailable(id);
+}
+/**
+ * Estimate the cost of a model invocation based on token counts and
+ * the SDK's built-in pricing table.
+ *
+ * @returns Estimated cost in USD, or 0 if pricing is unavailable for the model.
+ */
+export function estimateCost(model, inputTokens, outputTokens) {
+    const info = defaultRegistry.getModelInfo(model);
+    if (!info?.pricing)
+        return 0;
+    return (inputTokens * info.pricing.inputPerToken) + (outputTokens * info.pricing.outputPerToken);
+}
+// ============================================================================
+// Persistent Model Preference (Layer 0)
+// ============================================================================
+/**
+ * Economy mode model map: normal model → cheaper alternative.
+ *
+ * Applied at Layer 3 (task-aware auto) and Layer 4 (default) when
+ * economy mode is active. Layers 0–2 (explicit preferences) are
+ * never substituted — the user's explicit choice always wins.
+ *
+ * Table source: issue #500
+ */
+export const ECONOMY_MODEL_MAP = {
+    // Premium → standard downgrade (architecture/review tasks)
+    'claude-opus-4.6': 'claude-sonnet-4.5',
+    'claude-opus-4.6-fast': 'claude-sonnet-4.5',
+    'claude-opus-4.5': 'claude-sonnet-4.5',
+    // Standard → fast downgrade (code writing, docs, planning, triage)
+    'claude-sonnet-4.6': 'gpt-4.1',
+    'claude-sonnet-4.5': 'gpt-4.1',
+    // Fast → cheapest fast (scribe/mechanical, docs)
+    'claude-haiku-4.5': 'gpt-4.1',
+};
+/**
+ * Applies economy mode substitution to a model ID.
+ * Returns the cheaper economy alternative, or the original if no mapping exists.
+ */
+export function applyEconomyMode(model) {
+    return ECONOMY_MODEL_MAP[model] ?? model;
+}
+/**
+ * Reads the economy mode setting from `.squad/config.json`.
+ *
+ * @param squadDir - Path to the `.squad/` directory
+ * @returns True if economyMode is enabled, false otherwise
+ */
+export function readEconomyMode(squadDir) {
+    const configPath = join(squadDir, 'config.json');
+    if (!existsSync(configPath)) {
+        return false;
+    }
+    try {
+        const raw = readFileSync(configPath, 'utf-8');
+        const parsed = JSON.parse(raw);
+        return parsed !== null &&
+            typeof parsed === 'object' &&
+            parsed.economyMode === true;
+    }
+    catch {
+        return false;
+    }
+}
+/**
+ * Writes the economy mode setting to `.squad/config.json`.
+ * Merges with existing config — does not overwrite other fields.
+ *
+ * @param squadDir - Path to the `.squad/` directory
+ * @param enabled - Whether economy mode should be enabled
+ */
+export function writeEconomyMode(squadDir, enabled) {
+    const configPath = join(squadDir, 'config.json');
+    let config = {};
+    if (existsSync(configPath)) {
+        try {
+            config = JSON.parse(readFileSync(configPath, 'utf-8'));
+        }
+        catch {
+            config = { version: 1 };
+        }
+    }
+    else {
+        config = { version: 1 };
+    }
+    if (enabled) {
+        config.economyMode = true;
+    }
+    else {
+        delete config.economyMode;
+    }
+    writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n', 'utf-8');
+}
+/**
+ * Reads the persistent model preference from `.squad/config.json`.
+ *
+ * @param squadDir - Path to the `.squad/` directory
+ * @returns The defaultModel string if set, or null
+ */
+export function readModelPreference(squadDir) {
+    const configPath = join(squadDir, 'config.json');
+    if (!existsSync(configPath)) {
+        return null;
+    }
+    try {
+        const raw = readFileSync(configPath, 'utf-8');
+        const parsed = JSON.parse(raw);
+        if (parsed !== null &&
+            typeof parsed === 'object' &&
+            typeof parsed.defaultModel === 'string' &&
+            parsed.defaultModel.length > 0) {
+            return parsed.defaultModel;
+        }
+        return null;
+    }
+    catch {
+        return null;
+    }
+}
+/**
+ * Reads per-agent model overrides from `.squad/config.json`.
+ *
+ * @param squadDir - Path to the `.squad/` directory
+ * @returns Record of agent name → model ID, or empty object
+ */
+export function readAgentModelOverrides(squadDir) {
+    const configPath = join(squadDir, 'config.json');
+    if (!existsSync(configPath)) {
+        return {};
+    }
+    try {
+        const raw = readFileSync(configPath, 'utf-8');
+        const parsed = JSON.parse(raw);
+        if (parsed !== null &&
+            typeof parsed === 'object' &&
+            typeof parsed.agentModelOverrides === 'object' &&
+            parsed.agentModelOverrides !== null) {
+            const result = {};
+            for (const [key, value] of Object.entries(parsed.agentModelOverrides)) {
+                if (typeof value === 'string') {
+                    result[key] = value;
+                }
+            }
+            return result;
+        }
+        return {};
+    }
+    catch {
+        return {};
+    }
+}
+/**
+ * Writes a persistent model preference to `.squad/config.json`.
+ * Merges with existing config — does not overwrite other fields.
+ *
+ * @param squadDir - Path to the `.squad/` directory
+ * @param model - Model ID to persist, or null to clear
+ */
+export function writeModelPreference(squadDir, model) {
+    const configPath = join(squadDir, 'config.json');
+    let config = {};
+    if (existsSync(configPath)) {
+        try {
+            config = JSON.parse(readFileSync(configPath, 'utf-8'));
+        }
+        catch {
+            config = { version: 1 };
+        }
+    }
+    else {
+        config = { version: 1 };
+    }
+    if (model === null) {
+        delete config.defaultModel;
+    }
+    else {
+        config.defaultModel = model;
+    }
+    writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n', 'utf-8');
+}
+/**
+ * Writes per-agent model overrides to `.squad/config.json`.
+ * Merges with existing config — does not overwrite other fields.
+ *
+ * @param squadDir - Path to the `.squad/` directory
+ * @param overrides - Record of agent name → model ID, or null to clear
+ */
+export function writeAgentModelOverrides(squadDir, overrides) {
+    const configPath = join(squadDir, 'config.json');
+    let config = {};
+    if (existsSync(configPath)) {
+        try {
+            config = JSON.parse(readFileSync(configPath, 'utf-8'));
+        }
+        catch {
+            config = { version: 1 };
+        }
+    }
+    else {
+        config = { version: 1 };
+    }
+    if (overrides === null || Object.keys(overrides).length === 0) {
+        delete config.agentModelOverrides;
+    }
+    else {
+        config.agentModelOverrides = overrides;
+    }
+    writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n', 'utf-8');
+}
+/**
+ * Resolves the effective model for an agent spawn using the 5-layer hierarchy:
+ *   Layer 0: Persistent config (.squad/config.json defaultModel)
+ *   Layer 1: Session-wide user directive ("always use opus")
+ *   Layer 2: Charter preference (agent's ## Model section)
+ *   Layer 3: Task-aware auto-selection (code → sonnet, docs → haiku)
+ *   Layer 4: Default (claude-haiku-4.5)
+ *
+ * Per-agent overrides from config.json take priority over the global defaultModel.
+ *
+ * Economy mode modifier: when active (via economyMode option or config.json),
+ * shifts model selection at Layer 3 and Layer 4 to cheaper alternatives per
+ * ECONOMY_MODEL_MAP. Layers 0–2 (explicit user preferences) are never overridden.
+ *
+ * @param options - Resolution inputs
+ * @returns Resolved model ID
+ */
+export function resolveModel(options) {
+    const { agentName, squadDir, sessionDirective, charterPreference, taskModel } = options;
+    // Layer 0a: Per-agent persistent override (explicit — economy does not apply)
+    if (squadDir && agentName) {
+        const agentOverrides = readAgentModelOverrides(squadDir);
+        if (agentOverrides[agentName]) {
+            return agentOverrides[agentName];
+        }
+    }
+    // Layer 0b: Global persistent config (explicit — economy does not apply)
+    if (squadDir) {
+        const persistedModel = readModelPreference(squadDir);
+        if (persistedModel) {
+            return persistedModel;
+        }
+    }
+    // Layer 1: Session-wide user directive (explicit — economy does not apply)
+    if (sessionDirective) {
+        return sessionDirective;
+    }
+    // Layer 2: Charter preference (explicit — economy does not apply)
+    if (charterPreference) {
+        return charterPreference;
+    }
+    // Determine if economy mode is active (option takes precedence over config)
+    const isEconomy = options.economyMode !== undefined
+        ? options.economyMode
+        : (squadDir ? readEconomyMode(squadDir) : false);
+    // Layer 3: Task-aware auto-selection (economy mode applies)
+    if (taskModel) {
+        return isEconomy ? applyEconomyMode(taskModel) : taskModel;
+    }
+    // Layer 4: Default (economy mode applies)
+    const defaultModel = 'claude-haiku-4.5';
+    return isEconomy ? applyEconomyMode(defaultModel) : defaultModel;
 }
 //# sourceMappingURL=models.js.map

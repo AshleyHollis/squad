@@ -23,13 +23,24 @@ export function parseInput(input, knownAgents) {
         // Case-insensitive match against known agents
         const match = knownAgents.find(a => a.toLowerCase() === name.toLowerCase());
         if (match) {
+            const body = atMatch[2].trim();
+            if (!body) {
+                // @Agent with no message — route to coordinator with context
+                return {
+                    type: 'coordinator',
+                    raw: trimmed,
+                    content: trimmed,
+                };
+            }
             return {
                 type: 'direct_agent',
                 raw: trimmed,
                 agentName: match,
-                content: atMatch[2].trim() || undefined,
+                content: body,
             };
         }
+        // Unknown @mention — fall through to coordinator with the full text
+        // (coordinator can still route or answer)
     }
     // Also support "AgentName, do something" syntax
     const commaMatch = trimmed.match(/^(\w+),\s*(.*)/s);
@@ -37,11 +48,19 @@ export function parseInput(input, knownAgents) {
         const name = commaMatch[1];
         const match = knownAgents.find(a => a.toLowerCase() === name.toLowerCase());
         if (match) {
+            const body = commaMatch[2].trim();
+            if (!body) {
+                return {
+                    type: 'coordinator',
+                    raw: trimmed,
+                    content: trimmed,
+                };
+            }
             return {
                 type: 'direct_agent',
                 raw: trimmed,
                 agentName: match,
-                content: commaMatch[2].trim() || undefined,
+                content: body,
             };
         }
     }

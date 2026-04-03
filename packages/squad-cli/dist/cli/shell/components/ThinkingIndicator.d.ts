@@ -14,8 +14,12 @@ export interface ThinkingIndicatorProps {
     elapsedMs: number;
     activityHint?: string;
     phase?: ThinkingPhase;
+    /** When true, cycles conversation-aware phrases instead of generic ones. */
+    hasConversation?: boolean;
 }
 /** Rotating thinking phrases — cycled every few seconds to keep the UI alive. */
 export declare const THINKING_PHRASES: string[];
+/** Context-aware phrases shown when conversation history exists. */
+export declare const CONVERSATION_PHRASES: string[];
 export declare const ThinkingIndicator: React.FC<ThinkingIndicatorProps>;
 //# sourceMappingURL=ThinkingIndicator.d.ts.map

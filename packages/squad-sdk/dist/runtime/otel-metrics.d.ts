@@ -8,6 +8,7 @@
  * @module runtime/otel-metrics
  */
 import type { UsageEvent } from './streaming.js';
+import type { PrReworkResult, ReworkSummary } from './rework.js';
 /**
  * Record token usage from a UsageEvent.
  * Safe to call when OTel is not configured — metrics are no-ops.
@@ -37,6 +38,10 @@ export declare function recordTimeToFirstToken(ttftMs: number): void;
 export declare function recordResponseDuration(durationMs: number): void;
 /** Record streaming throughput. */
 export declare function recordTokensPerSecond(tokensPerSec: number): void;
+/** Record rework metrics for a single PR analysis result. */
+export declare function recordReworkMetrics(result: PrReworkResult): void;
+/** Record aggregate rework summary metrics across multiple PRs. */
+export declare function recordReworkSummary(summary: ReworkSummary): void;
 /** Reset all cached metric instances. Used in tests only. */
 export declare function _resetMetrics(): void;
 //# sourceMappingURL=otel-metrics.d.ts.map

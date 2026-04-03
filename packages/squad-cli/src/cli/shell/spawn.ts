@@ -9,6 +9,7 @@ import { SquadClient } from '@bradygaster/squad-sdk/client';
 import type { SquadSession } from '@bradygaster/squad-sdk/client';
 import { resolveModel, parseCharterMarkdown, type TaskType } from '@bradygaster/squad-sdk/agents';
 import { SessionRegistry } from './sessions.js';
+import { writeEventLog } from './event-log.js';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -100,6 +101,14 @@ export async function spawnAgent(
   registry.register(name, role);
   registry.updateStatus(name, 'working');
 
+  const spawnStartMs = Date.now();
+  writeEventLog(teamRoot, {
+    ts: new Date().toISOString(),
+    type: 'agent_spawn_start',
+    agent: name.toLowerCase(),
+    task: task.slice(0, 200),
+  });
+
   try {
     const systemPrompt = buildAgentPrompt(charter, { systemContext: options.systemContext });
 
@@ -117,6 +126,12 @@ export async function spawnAgent(
     if (!options.client) {
       // No client provided — return stub for backward compatibility
       registry.updateStatus(name, 'idle');
+      writeEventLog(teamRoot, {
+        ts: new Date().toISOString(),
+        type: 'agent_spawn_stub',
+        agent: name.toLowerCase(),
+        durationMs: Date.now() - spawnStartMs,
+      });
       return {
         agentName: name,
         status: 'completed',
@@ -148,6 +163,12 @@ export async function spawnAgent(
     try { await session.close(); } catch (err) { debugLog('spawnAgent: failed to close session for', name, err); }
 
     registry.updateStatus(name, 'idle');
+    writeEventLog(teamRoot, {
+      ts: new Date().toISOString(),
+      type: 'agent_spawn_complete',
+      agent: name.toLowerCase(),
+      durationMs: Date.now() - spawnStartMs,
+    });
     return {
       agentName: name,
       status: 'completed',
@@ -157,6 +178,13 @@ export async function spawnAgent(
     debugLog('spawnAgent: spawn failed for', name, error);
     registry.updateStatus(name, 'error');
     const msg = error instanceof Error ? error.message : String(error);
+    writeEventLog(teamRoot, {
+      ts: new Date().toISOString(),
+      type: 'agent_spawn_error',
+      agent: name.toLowerCase(),
+      error: msg.slice(0, 300),
+      durationMs: Date.now() - spawnStartMs,
+    });
     return {
       agentName: name,
       status: 'error',

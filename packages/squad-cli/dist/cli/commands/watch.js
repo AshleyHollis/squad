@@ -9,7 +9,8 @@ import { GREEN, RED, DIM, BOLD, RESET, YELLOW } from '../core/output.js';
 import { parseRoutingRules, parseModuleOwnership, parseRoster, triageIssue, } from '@bradygaster/squad-sdk/ralph/triage';
 import { RalphMonitor } from '@bradygaster/squad-sdk/ralph';
 import { EventBus } from '@bradygaster/squad-sdk/runtime/event-bus';
-import { ghAvailable, ghAuthenticated, ghIssueList, ghIssueEdit, ghPrList } from '../core/gh-cli.js';
+import { ghAvailable, ghAuthenticated, ghIssueList, ghIssueEdit, ghPrList, ghRateLimitCheck, isRateLimitError } from '../core/gh-cli.js';
+import { PredictiveCircuitBreaker, getTrafficLight, } from '@bradygaster/squad-sdk/ralph/rate-limiting';
 export function reportBoard(state, round) {
     const total = Object.values(state).reduce((a, b) => a + b, 0);
     if (total === 0) {
@@ -116,18 +117,24 @@ async function checkPRs(roster) {
 /**
  * Run a single check cycle
  */
-async function runCheck(rules, modules, roster, hasCopilot, autoAssign) {
+async function runCheck(rules, modules, roster, hasCopilot, autoAssign, capabilities = null) {
     const timestamp = new Date().toLocaleTimeString();
     try {
         // Fetch open issues with squad label
         const issues = await ghIssueList({ label: 'squad', state: 'open', limit: 20 });
+        // Filter by machine capabilities (#514)
+        const { filterByCapabilities } = await import('@bradygaster/squad-sdk/ralph/capabilities');
+        const { handled: capableIssues, skipped: incapableIssues } = filterByCapabilities(issues, capabilities);
+        for (const { issue, missing } of incapableIssues) {
+            console.log(`${DIM}[${timestamp}] ⏭️ Skipping #${issue.number} "${issue.title}" — missing: ${missing.join(', ')}${RESET}`);
+        }
         // Find untriaged issues (no squad:{member} label)
         const memberLabels = roster.map(m => m.label);
-        const untriaged = issues.filter(issue => {
+        const untriaged = capableIssues.filter(issue => {
             const issueLabels = issue.labels.map(l => l.name);
             return !memberLabels.some(ml => issueLabels.includes(ml));
         });
-        const assignedIssues = issues.filter(issue => {
+        const assignedIssues = capableIssues.filter(issue => {
             const issueLabels = issue.labels.map(l => l.name);
             return memberLabels.some(ml => issueLabels.includes(ml));
         });
@@ -186,6 +193,29 @@ async function runCheck(rules, modules, roster, hasCopilot, autoAssign) {
         return emptyBoardState();
     }
 }
+function defaultCBState() {
+    return {
+        status: 'closed',
+        openedAt: null,
+        cooldownMinutes: 2,
+        consecutiveFailures: 0,
+        consecutiveSuccesses: 0,
+        lastRateLimitRemaining: null,
+        lastRateLimitTotal: null,
+    };
+}
+function loadCBState(squadDir) {
+    const filePath = path.join(squadDir, 'ralph-circuit-breaker.json');
+    try {
+        return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    }
+    catch {
+        return defaultCBState();
+    }
+}
+function saveCBState(squadDir, state) {
+    fs.writeFileSync(path.join(squadDir, 'ralph-circuit-breaker.json'), JSON.stringify(state, null, 2));
+}
 /**
  * Run watch command — Ralph's local polling process
  */
@@ -216,6 +246,12 @@ export async function runWatch(dest, intervalMinutes) {
     const routingContent = fs.existsSync(routingMdPath) ? fs.readFileSync(routingMdPath, 'utf8') : '';
     const rules = parseRoutingRules(routingContent);
     const modules = parseModuleOwnership(routingContent);
+    // Load machine capabilities for needs:* label filtering (#514)
+    const { loadCapabilities } = await import('@bradygaster/squad-sdk/ralph/capabilities');
+    const capabilities = await loadCapabilities(path.dirname(squadDirInfo.path));
+    if (capabilities) {
+        console.log(`${DIM}📦 Machine: ${capabilities.machine} — ${capabilities.capabilities.length} capabilities loaded${RESET}`);
+    }
     if (roster.length === 0) {
         fatal('No squad members found in team.md');
     }
@@ -240,32 +276,111 @@ export async function runWatch(dest, intervalMinutes) {
     // Print startup banner
     console.log(`\n${BOLD}🔄 Ralph — Watch Mode${RESET}`);
     console.log(`${DIM}Polling every ${intervalMinutes} minute(s) for squad work. Ctrl+C to stop.${RESET}\n`);
+    // Initialize circuit breaker (#515)
+    const circuitBreaker = new PredictiveCircuitBreaker();
+    let cbState = loadCBState(squadDirInfo.path);
     let round = 0;
+    let roundInProgress = false;
+    /**
+     * Gate a round through the circuit breaker, then delegate to the
+     * existing runCheck + reportBoard flow. This wrapper is the ONLY
+     * new control flow — everything inside is unchanged.
+     */
+    async function executeRound() {
+        const ts = new Date().toLocaleTimeString();
+        // Check if circuit is open and cooldown hasn't elapsed
+        if (cbState.status === 'open') {
+            const elapsed = Date.now() - new Date(cbState.openedAt).getTime();
+            if (elapsed < cbState.cooldownMinutes * 60_000) {
+                const left = Math.ceil((cbState.cooldownMinutes * 60_000 - elapsed) / 1000);
+                console.log(`${YELLOW}⏸${RESET}  [${ts}] Circuit open — cooling down (${left}s left)`);
+                return;
+            }
+            cbState.status = 'half-open';
+            console.log(`${DIM}[${ts}] Circuit half-open — probing...${RESET}`);
+            saveCBState(squadDirInfo.path, cbState);
+        }
+        // Pre-flight: sample rate limit headers
+        try {
+            const rl = await ghRateLimitCheck();
+            cbState.lastRateLimitRemaining = rl.remaining;
+            cbState.lastRateLimitTotal = rl.limit;
+            circuitBreaker.addSample(rl.remaining, rl.limit);
+            const light = getTrafficLight(rl.remaining, rl.limit);
+            if (light === 'red' || circuitBreaker.shouldOpen()) {
+                cbState.status = 'open';
+                cbState.openedAt = new Date().toISOString();
+                cbState.consecutiveFailures++;
+                cbState.consecutiveSuccesses = 0;
+                cbState.cooldownMinutes = Math.min(cbState.cooldownMinutes * 2, 30);
+                saveCBState(squadDirInfo.path, cbState);
+                console.log(`${RED}🛑${RESET} [${ts}] Circuit opened — quota ${light === 'red' ? 'critical' : 'predicted low'} (${rl.remaining}/${rl.limit})`);
+                return;
+            }
+            if (light === 'amber') {
+                console.log(`${YELLOW}⚠️${RESET}  [${ts}] Quota amber (${rl.remaining}/${rl.limit}) — proceeding cautiously`);
+            }
+        }
+        catch {
+            // Rate limit check failed — proceed anyway, runCheck has its own catch
+        }
+        // ── Delegate to existing check cycle (untouched) ────────────
+        round++;
+        const roundState = await runCheck(rules, modules, roster, hasCopilot, autoAssign, capabilities);
+        await eventBus.emit({
+            type: 'agent:milestone',
+            sessionId: monitorSessionId,
+            agentName: 'Ralph',
+            payload: { milestone: `Completed watch round ${round}`, task: 'watch cycle' },
+            timestamp: new Date(),
+        });
+        await monitor.healthCheck();
+        reportBoard(roundState, round);
+        // Post-round: update circuit breaker on success
+        if (cbState.status === 'half-open') {
+            cbState.consecutiveSuccesses++;
+            if (cbState.consecutiveSuccesses >= 2) {
+                cbState.status = 'closed';
+                cbState.cooldownMinutes = 2;
+                cbState.consecutiveFailures = 0;
+                console.log(`${GREEN}✓${RESET} [${new Date().toLocaleTimeString()}] Circuit closed — quota recovered`);
+            }
+        }
+        else {
+            cbState.consecutiveSuccesses = 0;
+            cbState.consecutiveFailures = 0;
+        }
+        saveCBState(squadDirInfo.path, cbState);
+    }
     // Run immediately, then on interval
-    round++;
-    const state = await runCheck(rules, modules, roster, hasCopilot, autoAssign);
-    await eventBus.emit({
-        type: 'agent:milestone',
-        sessionId: monitorSessionId,
-        agentName: 'Ralph',
-        payload: { milestone: `Completed watch round ${round}`, task: 'watch cycle' },
-        timestamp: new Date(),
-    });
-    await monitor.healthCheck();
-    reportBoard(state, round);
+    await executeRound();
     return new Promise((resolve) => {
         const intervalId = setInterval(async () => {
-            round++;
-            const roundState = await runCheck(rules, modules, roster, hasCopilot, autoAssign);
-            await eventBus.emit({
-                type: 'agent:milestone',
-                sessionId: monitorSessionId,
-                agentName: 'Ralph',
-                payload: { milestone: `Completed watch round ${round}`, task: 'watch cycle' },
-                timestamp: new Date(),
-            });
-            await monitor.healthCheck();
-            reportBoard(roundState, round);
+            // Prevent overlapping rounds when a previous one is still running
+            if (roundInProgress)
+                return;
+            roundInProgress = true;
+            try {
+                await executeRound();
+            }
+            catch (e) {
+                const err = e;
+                if (isRateLimitError(err)) {
+                    cbState.status = 'open';
+                    cbState.openedAt = new Date().toISOString();
+                    cbState.consecutiveFailures++;
+                    cbState.consecutiveSuccesses = 0;
+                    cbState.cooldownMinutes = Math.min(cbState.cooldownMinutes * 2, 30);
+                    saveCBState(squadDirInfo.path, cbState);
+                    console.log(`${RED}🛑${RESET} Rate limited — circuit opened, cooldown ${cbState.cooldownMinutes}m`);
+                }
+                else {
+                    console.error(`${RED}✗${RESET} Round error: ${err.message}`);
+                }
+            }
+            finally {
+                roundInProgress = false;
+            }
         }, intervalMinutes * 60 * 1000);
         // Graceful shutdown
         let isShuttingDown = false;
@@ -284,6 +399,7 @@ export async function runWatch(dest, intervalMinutes) {
                 timestamp: new Date(),
             });
             await monitor.stop();
+            saveCBState(squadDirInfo.path, cbState);
             console.log(`\n${DIM}🔄 Ralph — Watch stopped${RESET}`);
             resolve();
         };

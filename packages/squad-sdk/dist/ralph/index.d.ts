@@ -55,4 +55,6 @@ export declare class RalphMonitor {
     /** Stop monitoring and persist final state */
     stop(): Promise<void>;
 }
+export { loadCapabilities, canHandleIssue, filterByCapabilities, extractNeeds, getDeploymentMode, getPodId, generatePodCapabilitiesPath, type MachineCapabilities, type DeploymentMode, KNOWN_CAPABILITIES } from './capabilities.js';
+export { getTrafficLight, shouldProceed, getRetryDelay, PredictiveCircuitBreaker, canUseQuota, loadRatePool, type RatePool, type RatePoolAllocation, type RateSample, type TrafficLight, type AgentPriority } from './rate-limiting.js';
 //# sourceMappingURL=index.d.ts.map

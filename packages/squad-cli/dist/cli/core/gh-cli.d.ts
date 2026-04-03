@@ -63,4 +63,17 @@ export declare function ghPrList(options?: GhPrListOptions): Promise<GhPullReque
  * Edit an issue (add/remove labels or assignees)
  */
 export declare function ghIssueEdit(issueNumber: number, options: GhEditOptions): Promise<void>;
+export interface GhRateLimit {
+    remaining: number;
+    limit: number;
+    resetAt: string;
+}
+/**
+ * Check current GitHub API rate limit via `gh api rate_limit`.
+ */
+export declare function ghRateLimitCheck(): Promise<GhRateLimit>;
+/**
+ * Detect if an error is a GitHub 429 rate limit error.
+ */
+export declare function isRateLimitError(err: unknown): boolean;
 //# sourceMappingURL=gh-cli.d.ts.map

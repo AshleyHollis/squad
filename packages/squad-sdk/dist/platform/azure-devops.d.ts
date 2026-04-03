@@ -4,6 +4,35 @@
  * @module platform/azure-devops
  */
 import type { PlatformAdapter, PlatformType, WorkItem, PullRequest } from './types.js';
+/** Descriptor for a work item type returned by process template introspection. */
+export interface WorkItemTypeInfo {
+    /** Display name — e.g. "User Story", "Bug", "Task", "Scenario" */
+    name: string;
+    /** Description of the work item type (may be empty) */
+    description: string;
+    /** Whether this type is disabled in the current process */
+    disabled: boolean;
+}
+/**
+ * Query the ADO process template for available work item types.
+ *
+ * Uses `az boards work-item type list` which returns the types configured
+ * for the project's process template (Agile, Scrum, CMMI, custom, etc.).
+ *
+ * Falls back to a minimal default list when the az CLI call fails
+ * (e.g. no auth, no devops extension, offline).
+ */
+export declare function getAvailableWorkItemTypes(org: string, project: string): WorkItemTypeInfo[];
+/**
+ * Validate that a work item type name exists in the project's process template.
+ *
+ * Returns `true` when the type is valid and not disabled, or when the type list
+ * cannot be retrieved (fail-open so offline/CI scenarios aren't blocked).
+ */
+export declare function validateWorkItemType(org: string, project: string, typeName: string): {
+    valid: boolean;
+    available: string[];
+};
 /** ADO-specific configuration for work items that may live in a different org/project than the repo. */
 export interface AdoWorkItemConfig {
     /** Azure DevOps org for work items (if different from repo org) */
@@ -40,6 +69,18 @@ export declare class AzureDevOpsAdapter implements PlatformAdapter {
         limit?: number;
     }): Promise<WorkItem[]>;
     getWorkItem(id: number): Promise<WorkItem>;
+    /**
+     * Query the available work item types for this adapter's work item project.
+     * Delegates to the module-level `getAvailableWorkItemTypes`.
+     */
+    getAvailableWorkItemTypes(): WorkItemTypeInfo[];
+    /**
+     * Validate a work item type against the project's process template.
+     */
+    validateWorkItemType(typeName: string): {
+        valid: boolean;
+        available: string[];
+    };
     createWorkItem(options: {
         title: string;
         description?: string;
@@ -48,6 +89,7 @@ export declare class AzureDevOpsAdapter implements PlatformAdapter {
         type?: string;
         areaPath?: string;
         iterationPath?: string;
+        validateType?: boolean;
     }): Promise<WorkItem>;
     addTag(workItemId: number, tag: string): Promise<void>;
     removeTag(workItemId: number, tag: string): Promise<void>;

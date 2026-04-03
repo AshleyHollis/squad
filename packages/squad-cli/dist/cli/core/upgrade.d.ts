@@ -6,6 +6,7 @@
 export interface UpgradeOptions {
     migrateDirectory?: boolean;
     self?: boolean;
+    force?: boolean;
 }
 export interface UpdateInfo {
     fromVersion: string;
@@ -13,6 +14,19 @@ export interface UpdateInfo {
     filesUpdated: string[];
     migrationsRun: string[];
 }
+/**
+ * Ensure .gitattributes has required merge=union rules (idempotent)
+ */
+export declare function ensureGitattributes(dest: string): string[];
+/**
+ * Ensure .gitignore has required entries (idempotent).
+ * Skips entries already covered by a parent path (e.g. `.squad/` covers `.squad/log/`).
+ */
+export declare function ensureGitignore(dest: string): string[];
+/**
+ * Create missing infrastructure directories
+ */
+export declare function ensureDirectories(dest: string): string[];
 /**
  * Run the upgrade command
  */

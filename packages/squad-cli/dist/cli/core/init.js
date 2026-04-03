@@ -2,14 +2,37 @@
  * Init command implementation — uses SDK
  * Scaffolds a new Squad project with templates, workflows, and directory structure
  */
+import fs from 'node:fs';
 import path from 'node:path';
-import { detectSquadDir } from './detect-squad-dir.js';
+import { execFileSync } from 'node:child_process';
+import { detectSquadDir, resolveWorktreeMainCheckout } from './detect-squad-dir.js';
 import { success, BOLD, RESET, YELLOW, GREEN, DIM } from './output.js';
 import { fatal } from './errors.js';
 import { detectProjectType } from './project-type.js';
-import { getPackageVersion } from './version.js';
-import { initSquad as sdkInitSquad, cleanupOrphanInitPrompt } from '@bradygaster/squad-sdk';
+import { getPackageVersion, stampVersion } from './version.js';
+import { initSquad as sdkInitSquad, cleanupOrphanInitPrompt, ensurePersonalSquadDir, resolvePersonalSquadDir } from '@bradygaster/squad-sdk';
 const CYAN = '\x1b[36m';
+/**
+ * Detect if the target directory is inside a parent git repo.
+ * Returns the normalized git root path if a parent repo is detected,
+ * or null if dest IS the git root or no git repo exists.
+ */
+export function detectParentGitRepo(dest) {
+    try {
+        const gitRoot = execFileSync('git', ['rev-parse', '--show-toplevel'], {
+            cwd: dest, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'],
+        }).trim().replace(/\//g, path.sep);
+        const normalDest = path.resolve(dest);
+        const normalGitRoot = path.resolve(gitRoot);
+        if (normalDest.toLowerCase() !== normalGitRoot.toLowerCase()) {
+            return normalGitRoot;
+        }
+    }
+    catch {
+        // No git available or not in a git repo
+    }
+    return null;
+}
 /** True when animations should be suppressed (NO_COLOR, dumb term, non-TTY). */
 export function isInitNoColor() {
     return ((process.env['NO_COLOR'] != null && process.env['NO_COLOR'] !== '') ||
@@ -67,8 +90,81 @@ export async function runInit(dest, options = {}) {
     console.log();
     // Detect project type
     const projectType = detectProjectType(dest);
+    // ── Parent git repo detection ─────────────────────────────────────
+    // Copilot resolves .github/agents/ relative to the git root.
+    // If CWD is inside a parent git repo, the agent file will be
+    // invisible to copilot because the git root points elsewhere.
+    try {
+        const gitRoot = execFileSync('git', ['rev-parse', '--show-toplevel'], {
+            cwd: dest, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'],
+        }).trim().replace(/\//g, path.sep);
+        const normalDest = path.resolve(dest);
+        const normalGitRoot = path.resolve(gitRoot);
+        if (normalDest.toLowerCase() !== normalGitRoot.toLowerCase()) {
+            console.log();
+            console.log(`${YELLOW}${BOLD}⚠  Parent git repo detected${RESET}`);
+            console.log(`${YELLOW}   Git root:  ${normalGitRoot}${RESET}`);
+            console.log(`${YELLOW}   You're in: ${normalDest}${RESET}`);
+            console.log();
+            console.log(`${DIM}Copilot resolves .github/agents/ from the git root, not from here.${RESET}`);
+            console.log(`${DIM}The Squad agent won't be visible to copilot in this folder.${RESET}`);
+            console.log();
+            // Auto-fix: run git init to create a repo boundary here
+            console.log(`${CYAN}${BOLD}→${RESET} Running ${CYAN}git init${RESET} to create a repo boundary...`);
+            execFileSync('git', ['init'], { cwd: dest, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
+            console.log(`${GREEN}${BOLD}✓${RESET} Initialized git repo at ${normalDest}`);
+            console.log();
+        }
+    }
+    catch {
+        // No git available or not in a git repo — that's fine, continue normally.
+        // Copilot will fall back to CWD for .github/agents/ discovery.
+    }
     // Detect squad directory
     const squadInfo = detectSquadDir(dest);
+    // ── Worktree guard ────────────────────────────────────────────────
+    // Prevent silently scaffolding a duplicate .squad/ when running init
+    // from a git worktree that already has .squad/ in the main checkout.
+    const mainCheckout = resolveWorktreeMainCheckout(dest);
+    if (mainCheckout) {
+        const mainSquadDir = path.join(mainCheckout, '.squad');
+        if (fs.existsSync(mainSquadDir)) {
+            console.log();
+            console.log(`${YELLOW}${BOLD}⚠  Git worktree detected${RESET}`);
+            console.log(`${YELLOW}   Main checkout: ${mainCheckout}${RESET}`);
+            console.log(`${YELLOW}   .squad/ already exists there.${RESET}`);
+            console.log();
+            console.log(`  ${BOLD}[s]${RESET} Use shared .squad/ from main checkout ${DIM}(recommended)${RESET}`);
+            console.log(`  ${BOLD}[l]${RESET} Create a worktree-local .squad/ in this branch`);
+            console.log();
+            let useShared = true;
+            if (process.stdin.isTTY) {
+                const { createInterface } = await import('node:readline/promises');
+                const rl = createInterface({ input: process.stdin, output: process.stdout });
+                try {
+                    const answer = (await rl.question(`  Strategy [s/l, default: s]: `)).trim().toLowerCase();
+                    useShared = answer !== 'l' && answer !== 'local';
+                }
+                finally {
+                    rl.close();
+                }
+            }
+            else {
+                console.log(`  ${DIM}Non-interactive mode — defaulting to shared strategy.${RESET}`);
+            }
+            if (useShared) {
+                console.log();
+                console.log(`${GREEN}${BOLD}✓${RESET} Using shared .squad/ from ${mainCheckout}`);
+                console.log(`${DIM}  No changes made. Run squad commands from the main checkout.${RESET}`);
+                console.log();
+                return;
+            }
+            // Local strategy: fall through to scaffold .squad/ in this worktree
+            console.log();
+            console.log(`${GREEN}${BOLD}→${RESET} Creating worktree-local .squad/ in ${dest}`);
+            console.log();
+        }
+    }
     // Show deprecation warning if using .ai-team/
     if (squadInfo.isLegacy) {
         showDeprecationWarning();
@@ -82,6 +178,11 @@ export async function runInit(dest, options = {}) {
                 name: 'scribe',
                 role: 'scribe',
                 displayName: 'Scribe',
+            },
+            {
+                name: 'ralph',
+                role: 'ralph',
+                displayName: 'Ralph',
             }
         ],
         configFormat: options.sdk ? 'sdk' : 'markdown',
@@ -93,6 +194,7 @@ export async function runInit(dest, options = {}) {
         version,
         prompt: options.prompt,
         extractionDisabled: options.extractionDisabled,
+        roles: options.roles,
     };
     // Handle SIGINT to cleanup orphan .init-prompt
     const squadDir = squadInfo.path;
@@ -112,6 +214,17 @@ export async function runInit(dest, options = {}) {
         return; // Unreachable but makes TS happy
     }
     process.off('SIGINT', sigintHandler);
+    // Ensure version is fully stamped in squad.agent.md
+    const agentPath = path.join(dest, '.github', 'agents', 'squad.agent.md');
+    if (fs.existsSync(agentPath)) {
+        stampVersion(agentPath, version);
+    }
+    // Persist --roles flag for the REPL to pick up during casting
+    if (options.roles) {
+        const rolesMarker = path.join(squadDir, '.init-roles');
+        fs.writeFileSync(rolesMarker, '1', 'utf-8');
+        success(`base roles enabled — team will use built-in role catalog`);
+    }
     // Report .init-prompt storage
     if (options.prompt) {
         success(`.init-prompt stored — team will be cast when you start squad`);
@@ -138,6 +251,22 @@ export async function runInit(dest, options = {}) {
     console.log();
     console.log(`${GREEN}${BOLD}Your team is ready.${RESET} Run ${CYAN}${BOLD}squad${RESET} to start.`);
     console.log();
+    // ── Personal squad bridge ───────────────────────────────────────────
+    if (options.isGlobal) {
+        // Global init: ensure personal-squad/ directory exists alongside .squad/
+        const personalDir = ensurePersonalSquadDir();
+        console.log(`${GREEN}${BOLD}✓${RESET} Personal squad initialized at ${DIM}${personalDir}${RESET}`);
+        console.log(`${DIM}  Add agents with: squad personal add <name> --role <role>${RESET}`);
+        console.log();
+    }
+    else {
+        // Repo init: inform user if personal squad is available
+        const personalDir = resolvePersonalSquadDir();
+        if (personalDir) {
+            console.log(`${GREEN}${BOLD}✓${RESET} Personal squad detected — your personal agents will be available here.`);
+            console.log();
+        }
+    }
     if (squadInfo.isLegacy) {
         showDeprecationWarning();
     }

@@ -34,6 +34,8 @@ export declare class StreamBridge {
     private buffers;
     private readonly options;
     private readonly registry;
+    /** Maximum buffer size per session (1 MB). Prevents unbounded memory growth. */
+    static readonly MAX_BUFFER_SIZE: number;
     constructor(registry: SessionRegistry, options: StreamBridgeOptions);
     /**
      * Process a streaming event from the pipeline.

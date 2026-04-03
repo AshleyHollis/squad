@@ -8,11 +8,12 @@
  *
  * @module builders
  */
-import type { TeamDefinition, AgentDefinition, DefaultsDefinition, RoutingDefinition, CeremonyDefinition, HooksDefinition, CastingDefinition, TelemetryDefinition, SkillDefinition, SquadSDKConfig } from './types.js';
-export type { AgentRef, ScheduleExpression, BuilderModelId, ModelPreference, DefaultsDefinition, TeamDefinition, AgentCapability, AgentDefinition, RoutingRule, RoutingDefinition, CeremonyDefinition, HooksDefinition, CastingDefinition, TelemetryDefinition, SkillDefinition, SkillTool, SquadSDKConfig, } from './types.js';
+import type { TeamDefinition, AgentDefinition, BudgetDefinition, DefaultsDefinition, RoutingDefinition, CeremonyDefinition, HooksDefinition, CastingDefinition, TelemetryDefinition, SkillDefinition, SquadSDKConfig } from './types.js';
+export type { AgentRef, ScheduleExpression, BuilderModelId, BudgetDefinition, ModelPreference, DefaultsDefinition, TeamDefinition, AgentCapability, AgentDefinition, RoutingRule, RoutingDefinition, CeremonyDefinition, HooksDefinition, CastingDefinition, TelemetryDefinition, SkillDefinition, SkillTool, SquadSDKConfig, } from './types.js';
 declare class BuilderValidationError extends Error {
     constructor(builder: string, reason: string);
 }
+export declare function defineBudget(config: BudgetDefinition): BudgetDefinition;
 /**
  * Define team metadata, project context, and member roster.
  *

@@ -5,7 +5,7 @@
  * Manages CopilotSDK sessions and routes messages to agents/coordinator.
  */
 import { createRequire } from 'node:module';
-import { existsSync, readFileSync, unlinkSync } from 'node:fs';
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join, resolve as pathResolve } from 'node:path';
 import React from 'react';
 import { render } from 'ink';
@@ -16,15 +16,18 @@ import { ShellRenderer } from './render.js';
 import { StreamBridge } from './stream-bridge.js';
 import { ShellLifecycle, loadWelcomeData } from './lifecycle.js';
 import { SquadClient } from '@bradygaster/squad-sdk/client';
+import { RateLimitError } from '@bradygaster/squad-sdk/adapter/errors';
 import { initSquadTelemetry, TIMEOUTS, StreamingPipeline, recordAgentSpawn, recordAgentDuration, recordAgentError, recordAgentDestroy, RuntimeEventBus, resolveSquad, resolveGlobalSquadPath } from '@bradygaster/squad-sdk';
 import { enableShellMetrics, recordShellSessionDuration, recordAgentResponseLatency, recordShellError } from './shell-metrics.js';
+import { parseAgentFromDescription } from './agent-name-parser.js';
 import { buildCoordinatorPrompt, buildInitModePrompt, parseCoordinatorResponse, hasRosterEntries } from './coordinator.js';
 import { loadAgentCharter, buildAgentPrompt } from './spawn.js';
 import { resolveModel, parseCharterMarkdown } from '@bradygaster/squad-sdk/agents';
 import { createSession, saveSession, loadLatestSession } from './session-store.js';
 import { parseDispatchTargets } from './router.js';
-import { agentSessionGuidance, genericGuidance, formatGuidance } from './error-messages.js';
-import { parseCastResponse, createTeam, formatCastSummary } from '../core/cast.js';
+import { agentSessionGuidance, genericGuidance, rateLimitGuidance, extractRetryAfter, formatGuidance } from './error-messages.js';
+import { parseCastResponse, createTeam, formatCastSummary, augmentWithCastingEngine } from '../core/cast.js';
+import { writeEventLog } from './event-log.js';
 export { SessionRegistry } from './sessions.js';
 export { StreamBridge } from './stream-bridge.js';
 export { ShellRenderer } from './render.js';
@@ -39,7 +42,7 @@ export { createCompleter } from './autocomplete.js';
 export { createSession, saveSession, loadLatestSession, listSessions, loadSessionById } from './session-store.js';
 export { App } from './components/App.js';
 export { ErrorBoundary } from './components/ErrorBoundary.js';
-export { sdkDisconnectGuidance, teamConfigGuidance, agentSessionGuidance, genericGuidance, formatGuidance, } from './error-messages.js';
+export { sdkDisconnectGuidance, teamConfigGuidance, agentSessionGuidance, genericGuidance, rateLimitGuidance, extractRetryAfter, timeoutGuidance, unknownCommandGuidance, formatGuidance, } from './error-messages.js';
 export { enableShellMetrics, recordShellSessionDuration, recordAgentResponseLatency, recordShellError, isShellTelemetryEnabled, _resetShellMetrics, } from './shell-metrics.js';
 const require = createRequire(import.meta.url);
 const pkg = require('../../../package.json');
@@ -92,7 +95,7 @@ export async function runShell() {
     // contexts (pipes, tests, CI) see useful guidance rather than a TTY error.
     const cwd = process.cwd();
     const localSquad = resolveSquad(cwd);
-    const globalSquadDir = join(resolveGlobalSquadPath(), '.squad');
+    const globalSquadDir = join(resolveGlobalSquadPath(), 'personal-squad');
     const hasAnySquad = !!localSquad || existsSync(globalSquadDir);
     if (!hasAnySquad && !process.stdin.isTTY) {
         console.log('Welcome to Squad\n');
@@ -627,18 +630,18 @@ export async function runShell() {
                 };
                 // Try to extract agent name from task description (e.g., "🔧 Morpheus: Building effects")
                 const desc = typeof event['description'] === 'string' ? event['description'] : '';
-                const agentMatch = desc.match(/^\S*\s*(\w+):/);
-                const matchedAgent = agentMatch?.[1]?.toLowerCase();
-                if (matchedAgent && knownAgentNames.includes(matchedAgent)) {
+                const parsed = parseAgentFromDescription(desc, knownAgentNames);
+                if (parsed) {
+                    const { agentName: matchedAgent, taskSummary } = parsed;
                     registry.updateStatus(matchedAgent, 'working');
-                    const taskSummary = desc.replace(/^\S*\s*\w+:\s*/, '').slice(0, 60);
                     registry.updateActivityHint(matchedAgent, taskSummary || 'working...');
                     shellApi?.setActivityHint(`${registry.get(matchedAgent)?.name ?? matchedAgent} — ${taskSummary || 'working'}...`);
                     shellApi?.setAgentActivity(matchedAgent, taskSummary || 'working...');
                     shellApi?.refreshAgents();
                 }
                 else {
-                    const hint = hintMap[toolName] ?? `Using ${toolName}...`;
+                    const trimmedDesc = desc.trim().slice(0, 80);
+                    const hint = trimmedDesc || (hintMap[toolName] ?? `Using ${toolName}...`);
                     shellApi?.setActivityHint(hint);
                 }
             }
@@ -725,6 +728,27 @@ export async function runShell() {
         debugLog('coordinator accumulated (first 200 chars)', accumulated.slice(0, 200));
         const decision = parseCoordinatorResponse(accumulated);
         debugLog('coordinator decision', { type: decision.type, hasRoutes: !!(decision.routes?.length), hasDirectAnswer: !!decision.directAnswer });
+        // Log coordinator decision so `/logs` can surface routing problems
+        if (decision.type === 'route' || decision.type === 'multi') {
+            for (const route of decision.routes ?? []) {
+                writeEventLog(teamRoot, {
+                    ts: new Date().toISOString(),
+                    type: 'coordinator_routed',
+                    agent: route.agent.toLowerCase(),
+                    task: route.task.slice(0, 200),
+                });
+            }
+        }
+        else {
+            // DIRECT or fallback: check whether the LLM actually used DIRECT: prefix or just ignored the format
+            const usedStructuredFormat = /^(ROUTE:|MULTI:|DIRECT:)/m.test(accumulated.trim());
+            writeEventLog(teamRoot, {
+                ts: new Date().toISOString(),
+                type: usedStructuredFormat ? 'coordinator_direct' : 'coordinator_fallback',
+                // Include the raw response on fallback so the user can see what the LLM said
+                raw: usedStructuredFormat ? undefined : accumulated.slice(0, 500),
+            });
+        }
         if (decision.type === 'route' && decision.routes?.length) {
             for (const route of decision.routes) {
                 shellApi?.addMessage({
@@ -829,7 +853,17 @@ export async function runShell() {
         // Create a temporary Init Mode coordinator session
         let initSession = null;
         try {
-            const initSysPrompt = buildInitModePrompt({ teamRoot });
+            // Check for .init-roles marker (set by `squad init --roles` or `/init --roles`)
+            const initRolesMarker = join(teamRoot, '.squad', '.init-roles');
+            const useBaseRoles = existsSync(initRolesMarker);
+            // Consume the marker immediately — it's been read, no need to persist
+            if (useBaseRoles) {
+                try {
+                    unlinkSync(initRolesMarker);
+                }
+                catch { /* ignore */ }
+            }
+            const initSysPrompt = buildInitModePrompt({ teamRoot, useBaseRoles });
             initSession = await client.createSession({
                 streaming: true,
                 systemMessage: { mode: 'append', content: initSysPrompt },
@@ -864,7 +898,7 @@ export async function runShell() {
             debugLog('handleInitCast: response length', accumulated.length);
             debugLog('handleInitCast: response preview', accumulated.slice(0, 500));
             // Parse the team proposal
-            const proposal = parseCastResponse(accumulated);
+            let proposal = parseCastResponse(accumulated);
             if (!proposal) {
                 debugLog('handleInitCast: failed to parse team from response');
                 debugLog('handleInitCast: full response:', accumulated);
@@ -879,6 +913,12 @@ export async function runShell() {
                 });
                 return;
             }
+            // Augment with CastingEngine if universe is recognized
+            proposal = augmentWithCastingEngine(proposal);
+            debugLog('handleInitCast: augmented proposal', {
+                universe: proposal.universe,
+                members: proposal.members.map(m => m.name),
+            });
             // Show the proposed team
             shellApi?.addMessage({
                 role: 'agent',
@@ -953,6 +993,7 @@ export async function runShell() {
             }
             catch { /* ignore */ }
         }
+        // Note: .init-roles marker is already cleaned up in handleInitCast (consumed on read)
         // Invalidate the old coordinator session so the next dispatch builds one
         // with the real team roster
         if (coordinatorSession) {
@@ -1076,11 +1117,35 @@ export async function runShell() {
             debugLog('handleDispatch error:', err);
             recordShellError('dispatch', err instanceof Error ? err.constructor.name : 'unknown');
             const errorMsg = err instanceof Error ? err.message : String(err);
-            const friendly = errorMsg.replace(/^Error:\s*/i, '');
-            // Only show raw error detail when SQUAD_DEBUG=1; otherwise keep it generic
-            const detail = process.env['SQUAD_DEBUG'] === '1' ? friendly : 'Something went wrong processing your message.';
             if (shellApi) {
-                const guidance = genericGuidance(detail);
+                const isRateLimit = err instanceof RateLimitError ||
+                    /rate.?limit|quota.*exceed|429/i.test(errorMsg);
+                let guidance;
+                if (isRateLimit) {
+                    const retryAfter = err instanceof RateLimitError
+                        ? err.retryAfter
+                        : extractRetryAfter(errorMsg);
+                    const model = err instanceof RateLimitError ? err.context.model : undefined;
+                    guidance = rateLimitGuidance({ retryAfter, model });
+                    // Persist rate limit status so `squad doctor` can surface it.
+                    try {
+                        const squadDir = join(teamRoot, '.squad');
+                        writeFileSync(join(squadDir, 'rate-limit-status.json'), JSON.stringify({
+                            timestamp: new Date().toISOString(),
+                            retryAfter,
+                            model,
+                            message: errorMsg,
+                        }));
+                    }
+                    catch { /* non-fatal */ }
+                }
+                else if (process.env['SQUAD_DEBUG'] === '1') {
+                    const friendly = errorMsg.replace(/^Error:\s*/i, '');
+                    guidance = genericGuidance(friendly);
+                }
+                else {
+                    guidance = genericGuidance('Something went wrong processing your message.');
+                }
                 shellApi.addMessage({
                     role: 'system',
                     content: formatGuidance(guidance),
@@ -1115,8 +1180,9 @@ export async function runShell() {
     }
     // Clear terminal and scrollback — prevents old scaffold output from
     // bleeding through above the header box in extended sessions.
+    // Also ensures we start from a clean viewport before Ink renders.
     process.stdout.write('\x1b[2J\x1b[3J\x1b[H');
-    const { waitUntilExit } = render(React.createElement(ErrorBoundary, null, React.createElement(App, {
+    const { waitUntilExit, unmount } = render(React.createElement(ErrorBoundary, null, React.createElement(App, {
         registry,
         renderer,
         teamRoot,
@@ -1176,9 +1242,33 @@ export async function runShell() {
         onDispatch: handleDispatch,
         onCancel: handleCancel,
         onRestoreSession,
-    })), { exitOnCtrlC: false, patchConsole: false });
+    })), 
+    // NOTE: Both incrementalRendering AND Ink's trailing-newline have been
+    // patched via scripts/patch-ink-rendering.mjs (runs on postinstall).
+    // This means: (a) logUpdate uses standard erase-and-rewrite, (b) no
+    // trailing '\n' is appended to output, (c) no clearTerminal scroll-to-top.
+    // patchConsole: false ensures console.log doesn't corrupt Ink's rendering.
+    { exitOnCtrlC: false, patchConsole: false });
     // Clear the loading message now that Ink is rendering
     process.stderr.write('\r\x1b[K');
+    // Signal handlers for graceful exit — prevents orphaned child processes on Ctrl+C.
+    // Calling unmount() causes waitUntilExit() to resolve, triggering the normal
+    // cleanup path below (session close, client disconnect, telemetry shutdown).
+    let _shellSignalCode;
+    let _shellExiting = false;
+    const handleShellSignal = (signal) => {
+        const code = signal === 'SIGINT' ? 130 : 143;
+        if (_shellExiting) {
+            // Second signal — force exit immediately
+            process.exit(code);
+        }
+        _shellExiting = true;
+        _shellSignalCode = code;
+        debugLog(`Received ${signal}, unmounting shell...`);
+        unmount();
+    };
+    process.on('SIGINT', () => handleShellSignal('SIGINT'));
+    process.on('SIGTERM', () => handleShellSignal('SIGTERM'));
     await waitUntilExit();
     // Record shell session duration before cleanup
     recordShellSessionDuration(Date.now() - sessionStart);
@@ -1258,6 +1348,10 @@ export async function runShell() {
     }
     else {
         console.log(`${prefix}Squad out.`);
+    }
+    // If we exited due to a signal, propagate the conventional exit code
+    if (_shellSignalCode !== undefined) {
+        process.exit(_shellSignalCode);
     }
 }
 //# sourceMappingURL=index.js.map

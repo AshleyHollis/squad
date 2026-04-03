@@ -58,7 +58,7 @@ export interface StatusQuery {
     verbose?: boolean;
 }
 export interface SkillRequest {
-    /** Skill name (maps to .squad/skills/{name}/SKILL.md) */
+    /** Skill name (maps to .copilot/skills/{name}/SKILL.md) */
     skillName: string;
     /** Operation: read the skill or write/update it */
     operation: 'read' | 'write';
@@ -91,5 +91,14 @@ export declare class ToolRegistry {
     getToolsForAgent(allowedTools?: string[]): SquadTool<any>[];
     /** Get a specific tool by name */
     getTool(name: string): SquadTool<any> | undefined;
+    /**
+     * Replace built-in tool handlers with skill-backed versions.
+     * Called post-construction after SkillScriptLoader has resolved handlers.
+     * Only replaces tools that already exist — unknown tool names are silently ignored.
+     * Once applied, handlers are immutable for the session.
+     *
+     * Skill handlers are already OTel-wrapped by SkillScriptLoader.load() — no re-wrapping here.
+     */
+    applySkillHandlers(tools: SquadTool<any>[]): void;
 }
 //# sourceMappingURL=index.d.ts.map

@@ -3,7 +3,9 @@ import { BOLD, DIM, RESET } from '../core/output.js';
 import { listSessions, loadSessionById } from './session-store.js';
 import { formatAgentLine } from './agent-status.js';
 import path from 'node:path';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { runNapSync, formatNapReport } from '../core/nap.js';
+import { readRecentEvents } from './event-log.js';
 /**
  * Execute a slash command.
  */
@@ -30,10 +32,16 @@ export function executeCommand(command, args, context) {
             return { handled: true, output: context.version ?? 'unknown' };
         case 'nap':
             return handleNap(args, context);
+        case 'logs':
+            return handleLogs(args, context);
         case 'init':
             return handleInit(args, context);
-        default:
-            return { handled: false, output: `Hmm, /${command}? Type /help for commands.` };
+        default: {
+            const known = ['status', 'history', 'clear', 'help', 'quit', 'exit', 'agents', 'sessions', 'resume', 'version', 'nap', 'logs', 'init'];
+            const suggestion = known.find(k => k.startsWith(command.slice(0, 2)));
+            const hint = suggestion ? ` Did you mean /${suggestion}?` : '';
+            return { handled: false, output: `Unknown command: /${command}.${hint} Type /help for commands.` };
+        }
     }
 }
 function handleStatus(context) {
@@ -56,7 +64,14 @@ function handleStatus(context) {
     return { handled: true, output: lines.join('\n') };
 }
 function handleHistory(args, context) {
-    const limit = args[0] ? parseInt(args[0], 10) : 10;
+    let limit = 10;
+    if (args[0]) {
+        const parsed = parseInt(args[0], 10);
+        if (isNaN(parsed) || parsed <= 0) {
+            return { handled: true, output: 'Usage: /history [count]  — count must be a positive number.' };
+        }
+        limit = parsed;
+    }
     const recent = context.messageHistory.slice(-limit);
     if (recent.length === 0) {
         return { handled: true, output: 'No messages yet.' };
@@ -83,15 +98,18 @@ function handleHelp(args) {
                 'How it works:',
                 '  Just type what you need — Squad routes your message to the right agent.',
                 '  @AgentName message — send directly to one agent (case-insensitive).',
+                '  @Agent1 @Agent2 message — send to multiple agents in parallel.',
+                '  AgentName, message — comma syntax also works for direct dispatch.',
                 '',
                 'Commands:',
                 '/status — Check your team',
-                '/history — Recent messages',
+                '/history [N] — Recent messages (default 10)',
                 '/agents — List team members',
                 '/sessions — Past sessions',
-                '/resume <id> — Restore session',
-                '/init — Set up your team',
-                '/nap — Context hygiene',
+                '/resume <id> — Restore session by ID prefix',
+                '/logs [N] — Recent agent events (default 20)',
+                '/init [--roles] [prompt] — Set up your team',
+                '/nap [--deep] [--dry-run] — Context hygiene',
                 '/version — Show version',
                 '/clear — Clear screen',
                 '/quit — Exit',
@@ -104,18 +122,21 @@ function handleHelp(args) {
             'How it works:',
             '  Just type what you need — Squad routes your message to the right agent.',
             '  @AgentName message — send directly to one agent (case-insensitive).',
+            '  @Agent1 @Agent2 message — send to multiple agents in parallel.',
+            '  AgentName, message — comma syntax also works for direct dispatch.',
             '',
             'Commands:',
-            "  /status    — Check your team & what's happening",
-            '  /history   — See recent messages',
-            '  /agents    — List all team members',
-            '  /sessions  — List saved sessions',
-            '  /resume    — Restore a past session',
-            '  /init      — Set up your team',
-            '  /nap       — Context hygiene (compress, prune, archive)',
-            '  /version   — Show version',
-            '  /clear     — Clear the screen',
-            '  /quit      — Exit',
+            "  /status             — Check your team & what's happening",
+            '  /history [N]        — See recent messages (default 10)',
+            '  /agents             — List all team members',
+            '  /sessions           — List saved sessions',
+            '  /resume <id>        — Restore a past session by ID prefix',
+            '  /logs [N]           — Show recent agent events (spawn, errors, routing) — default 20',
+            '  /init [--roles] [p] — Set up your team (add --roles for base role catalog)',
+            '  /nap [--deep]       — Context hygiene (compress, prune, archive)',
+            '  /version            — Show version',
+            '  /clear              — Clear the screen',
+            '  /quit               — Exit',
         ].join('\n'),
     };
 }
@@ -153,13 +174,13 @@ function handleResume(args, context) {
     }
     const session = loadSessionById(context.teamRoot, match.id);
     if (!session) {
-        return { handled: true, output: 'Failed to load session data.' };
+        return { handled: true, output: `Failed to load session data for "${prefix}". The session file may be corrupted. Try /sessions to see available sessions.` };
     }
     if (context.onRestoreSession) {
         context.onRestoreSession(session);
         return { handled: true, output: `✓ Restored session ${match.id.slice(0, 8)} (${session.messages.length} messages)` };
     }
-    return { handled: true, output: 'Session restore not available.' };
+    return { handled: true, output: 'Session restore not available in this context. Try restarting the shell.' };
 }
 function handleNap(args, context) {
     try {
@@ -169,15 +190,84 @@ function handleNap(args, context) {
         const result = runNapSync({ squadDir, deep, dryRun });
         return { handled: true, output: formatNapReport(result, !!process.env['NO_COLOR']) };
     }
-    catch {
-        return { handled: true, output: 'Nap failed. Run `squad nap` from the CLI for details.' };
+    catch (err) {
+        const detail = err instanceof Error ? err.message : String(err);
+        return { handled: true, output: `Nap failed: ${detail}\nRun \`squad nap\` from the CLI for details.` };
     }
 }
+function handleLogs(args, context) {
+    const limitArg = args[0] ? parseInt(args[0], 10) : NaN;
+    const limit = isNaN(limitArg) ? 20 : limitArg;
+    const events = readRecentEvents(context.teamRoot, limit);
+    if (events.length === 0) {
+        return {
+            handled: true,
+            output: [
+                'No events logged yet.',
+                '',
+                'Events are recorded to .squad/log/squad-events.jsonl as agents run.',
+                'For verbose real-time output: SQUAD_DEBUG=1 squad',
+            ].join('\n'),
+        };
+    }
+    const TYPE_ICON = {
+        coordinator_routed: '📌',
+        coordinator_direct: '💬',
+        coordinator_fallback: '⚠️ ',
+        agent_spawn_start: '▶ ',
+        agent_spawn_complete: '✓ ',
+        agent_spawn_error: '✗ ',
+        agent_spawn_stub: '⚠️ ',
+    };
+    const lines = events.map(e => {
+        const time = new Date(e.ts).toLocaleTimeString();
+        const icon = TYPE_ICON[e.type] ?? '  ';
+        const agent = e.agent ? ` [${e.agent}]` : '';
+        const ms = e.durationMs != null ? ` (${e.durationMs}ms)` : '';
+        let detail = '';
+        if (e.error)
+            detail = ` — ${e.error.slice(0, 80)}`;
+        else if (e.task)
+            detail = ` — ${e.task.slice(0, 60)}${e.task.length > 60 ? '...' : ''}`;
+        return `  [${time}] ${icon} ${e.type}${agent}${ms}${detail}`;
+    });
+    // Surface any fallback events prominently
+    const fallbacks = events.filter(e => e.type === 'coordinator_fallback');
+    const hint = fallbacks.length > 0
+        ? [
+            '',
+            `⚠️  ${fallbacks.length} coordinator_fallback event${fallbacks.length > 1 ? 's' : ''} detected.`,
+            '   The coordinator responded without ROUTE:/MULTI:/DIRECT: format — no agent was dispatched.',
+            '   Last fallback response preview:',
+            `   "${(fallbacks[fallbacks.length - 1]?.raw ?? '').slice(0, 120).replace(/\n/g, ' ')}..."`,
+            '',
+            '   Try rephrasing your request, or check routing.md for routing rules.',
+            '   For full debug output: SQUAD_DEBUG=1 squad',
+        ].join('\n')
+        : '';
+    return {
+        handled: true,
+        output: `Last ${events.length} event${events.length !== 1 ? 's' : ''}:\n${lines.join('\n')}${hint}`,
+    };
+}
 function handleInit(args, context) {
-    // Check if args contain an inline prompt
-    const prompt = args.join(' ').trim();
+    // Check for --roles flag
+    const useBaseRoles = args.includes('--roles');
+    const filteredArgs = args.filter(a => a !== '--roles');
+    const prompt = filteredArgs.join(' ').trim();
+    if (useBaseRoles) {
+        // Write .init-roles marker for the casting flow to pick up
+        const rolesMarker = path.join(context.teamRoot, '.squad', '.init-roles');
+        try {
+            mkdirSync(path.dirname(rolesMarker), { recursive: true });
+        }
+        catch { /* ignore */ }
+        try {
+            writeFileSync(rolesMarker, '1', 'utf-8');
+        }
+        catch { /* ignore */ }
+    }
     if (prompt) {
-        // Inline prompt provided: /init "Build a snake game"
         return {
             handled: true,
             triggerInitCast: { prompt },
@@ -194,6 +284,7 @@ function handleInit(args, context) {
             'create agent files, and route your work — all automatically.',
             '',
             'Example: "Build a React app with a Node.js backend"',
+            useBaseRoles ? 'Mode: Using built-in base roles (--roles)' : 'Mode: Fictional universe casting (default)',
             '',
             `Team file: ${context.teamRoot}/.squad/team.md`,
         ].join('\n'),

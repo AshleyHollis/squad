@@ -76,12 +76,12 @@ function getSquadAgentTemplatePath() {
     // Use fileURLToPath for cross-platform compatibility (handles Windows drive letters, URL encoding)
     const currentDir = path.dirname(fileURLToPath(import.meta.url));
     // Try relative to this file (in dist/)
-    const distPath = path.resolve(currentDir, '../../templates/squad.agent.md');
+    const distPath = path.resolve(currentDir, '../../templates/squad.agent.md.template');
     if (fs.existsSync(distPath)) {
         return distPath;
     }
     // Try relative to package root
-    const pkgPath = path.resolve(currentDir, '../../../templates/squad.agent.md');
+    const pkgPath = path.resolve(currentDir, '../../../templates/squad.agent.md.template');
     if (fs.existsSync(pkgPath)) {
         return pkgPath;
     }
@@ -149,7 +149,7 @@ You are **Squad (Consultant)** — working on **${projectName}** using a copy of
 - **Team:** \`.squad/team.md\` for roster and roles
 - **Routing:** \`.squad/routing.md\` for task routing rules  
 - **Decisions:** \`.squad/decisions.md\` for your established patterns
-- **Skills:** \`.squad/skills/\` for reusable capabilities
+- **Skills:** \`.copilot/skills/\` for reusable capabilities
 - **Agents:** \`.squad/agents/\` for your squad agents
 
 Work as you would with your personal squad, but in this external codebase.
@@ -230,10 +230,10 @@ function listFilesInDir(dir, basePath = '') {
 }
 /**
  * Get the personal squad root path.
- * Returns {globalSquadPath}/.squad/
+ * Returns {globalSquadPath}/personal-squad/
  */
 export function getPersonalSquadRoot() {
-    return path.resolve(resolveGlobalSquadPath(), '.squad');
+    return path.resolve(resolveGlobalSquadPath(), 'personal-squad');
 }
 /**
  * Resolve the git exclude path using git rev-parse (handles worktrees/submodules).
@@ -734,8 +734,8 @@ function extractSkillName(content) {
 /**
  * Merge staged learnings into personal squad.
  *
- * Routes skills to ~/.squad/skills/{name}/SKILL.md
- * Routes decisions to ~/.squad/decisions.md (with smart merge)
+ * Routes skills to personal squad directory via resolveGlobalSquadPath() to .copilot/skills/{name}/SKILL.md
+ * Routes decisions to decisions.md in personal squad directory (with smart merge)
  *
  * @param learnings - Staged learnings to merge
  * @param personalSquadRoot - Path to personal squad root
@@ -757,8 +757,8 @@ export async function mergeToPersonalSquad(learnings, personalSquadRoot) {
             decisions.push(learning);
         }
     }
-    // Route skills to ~/.squad/skills/{name}/SKILL.md
-    const skillsDir = path.join(personalSquadRoot, 'skills');
+    // Route skills to personal squad directory (via resolveGlobalSquadPath()) at .copilot/skills/{name}/SKILL.md
+    const skillsDir = path.join(path.dirname(personalSquadRoot), '.copilot', 'skills');
     for (const skill of skills) {
         const skillName = extractSkillName(skill.content) || skill.filename.replace('.md', '');
         const skillDir = path.join(skillsDir, skillName);
@@ -771,7 +771,7 @@ export async function mergeToPersonalSquad(learnings, personalSquadRoot) {
         fs.writeFileSync(skillPath, skill.content, 'utf-8');
         skillsAdded++;
     }
-    // Route decisions to ~/.squad/decisions.md
+    // Route decisions to personal squad directory at decisions.md
     if (decisions.length > 0) {
         const decisionsPath = path.join(personalSquadRoot, 'decisions.md');
         const newContent = decisions.map(d => d.content.trim()).join('\n\n');

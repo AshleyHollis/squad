@@ -22,6 +22,8 @@ export { AgentLifecycleManager, } from './lifecycle.js';
 export { createHistoryShadow, appendToHistory, readHistory, shadowExists, deleteHistoryShadow, } from './history-shadow.js';
 // --- M2-10 Agent Onboarding ---
 export { onboardAgent, addAgentToConfig, } from './onboarding.js';
+// --- Personal Squad Agents ---
+export { resolvePersonalAgents, mergeSessionCast, } from './personal.js';
 // --- Charter Compiler ---
 export class CharterCompiler {
     /**

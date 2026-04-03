@@ -8,9 +8,10 @@ const require = createRequire(import.meta.url);
 const pkg = require('../package.json');
 export const VERSION = pkg.version;
 // Export public API
-export { resolveSquad, resolveGlobalSquadPath, ensureSquadPath, loadDirConfig, isConsultMode } from './resolution.js';
+export { resolveSquad, resolveGlobalSquadPath, resolvePersonalSquadDir, ensurePersonalSquadDir, ensureSquadPath, ensureSquadPathTriple, loadDirConfig, isConsultMode } from './resolution.js';
 export * from './config/index.js';
 export * from './agents/onboarding.js';
+export { resolvePersonalAgents, mergeSessionCast } from './agents/personal.js';
 export * from './casting/index.js';
 export * from './skills/index.js';
 export { selectResponseTier, getTier } from './coordinator/response-tiers.js';
@@ -24,9 +25,11 @@ export * from './runtime/i18n.js';
 export * from './runtime/benchmarks.js';
 export * from './runtime/otel-init.js';
 export * from './runtime/otel-metrics.js';
+export * from './runtime/rework.js';
 export { getMeter, getTracer } from './runtime/otel.js';
 export { safeTimestamp } from './utils/safe-timestamp.js';
 export { EventBus as RuntimeEventBus } from './runtime/event-bus.js';
+export { validateManifest, readManifest, discoverSquads, discoverFromUpstreams, discoverFromRegistry, buildDelegationArgs, buildStatusCheckArgs, parseIssueStatus, formatDiscoveryTable, findSquadByName, } from './runtime/cross-squad.js';
 export * from './marketplace/index.js';
 export * from './build/index.js';
 export * from './sharing/index.js';
@@ -34,6 +37,8 @@ export * from './upstream/index.js';
 export * from './remote/index.js';
 export * from './streams/index.js';
 // Builder functions (SDK-First Squad Mode)
-export { defineTeam, defineAgent, defineRouting, defineCeremony, defineHooks, defineCasting, defineTelemetry, defineDefaults, defineSkill, defineSquad, BuilderValidationError, } from './builders/index.js';
+export { defineTeam, defineAgent, defineBudget, defineRouting, defineCeremony, defineHooks, defineCasting, defineTelemetry, defineDefaults, defineSkill, defineSquad, BuilderValidationError, } from './builders/index.js';
+// Base Roles (built-in role catalog)
+export * from './roles/index.js';
 export * from './platform/index.js';
 //# sourceMappingURL=index.js.map

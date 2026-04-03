@@ -34,11 +34,10 @@ export class RalphMonitor {
         this.unsubscribers.push(eventBus.subscribe('session:destroyed', (event) => this.handleEvent(event)));
         this.unsubscribers.push(eventBus.subscribe('session:error', (event) => this.handleEvent(event)));
         this.unsubscribers.push(eventBus.subscribe('agent:milestone', (event) => this.handleEvent(event)));
-        // DISABLED: Heartbeat timer commented out pre-migration — re-enable when ready
-        // const interval = this.config.healthCheckInterval ?? 30_000;
-        // this.healthCheckTimer = setInterval(() => {
-        //   void this.healthCheck();
-        // }, interval);
+        const interval = this.config.healthCheckInterval ?? 30_000;
+        this.healthCheckTimer = setInterval(() => {
+            void this.healthCheck();
+        }, interval);
     }
     /** Handle an incoming event from the EventBus */
     handleEvent(event) {
@@ -125,4 +124,6 @@ export class RalphMonitor {
         this.eventBus = null;
     }
 }
+export { loadCapabilities, canHandleIssue, filterByCapabilities, extractNeeds, getDeploymentMode, getPodId, generatePodCapabilitiesPath, KNOWN_CAPABILITIES } from './capabilities.js';
+export { getTrafficLight, shouldProceed, getRetryDelay, PredictiveCircuitBreaker, canUseQuota, loadRatePool } from './rate-limiting.js';
 //# sourceMappingURL=index.js.map

@@ -6,15 +6,20 @@
  * who don't use OTel pay nothing — if no provider is registered all
  * instrumentation is a no-op.
  *
+ * Issue #281 additions: auto-creates EventBus and CostTracker so users
+ * just call `initSquadTelemetry()` and everything lights up.
+ *
  * @module runtime/otel-init
  */
 import type { OTelConfig } from './otel.js';
-import type { EventBus } from './event-bus.js';
+import { EventBus } from './event-bus.js';
+import { CostTracker } from './cost-tracker.js';
 /** Options for the high-level {@link initSquadTelemetry} helper. */
 export interface SquadTelemetryOptions extends OTelConfig {
     /**
-     * When provided, all EventBus events are automatically forwarded
-     * as OTel spans via {@link bridgeEventBusToOTel}.
+     * When provided, this EventBus is used instead of auto-creating one.
+     * All EventBus events are automatically forwarded as OTel spans
+     * via {@link bridgeEventBusToOTel}.
      */
     eventBus?: EventBus;
     /**
@@ -30,6 +35,10 @@ export interface SquadTelemetryHandle {
     tracing: boolean;
     /** Whether metrics were activated. */
     metrics: boolean;
+    /** The EventBus instance (auto-created or user-supplied). */
+    eventBus: EventBus;
+    /** The CostTracker wired to the EventBus. */
+    costTracker: CostTracker;
     /**
      * Flush pending telemetry, detach the EventBus bridge (if any),
      * and shut down OTel providers. Safe to call multiple times.
@@ -40,31 +49,29 @@ export interface SquadTelemetryHandle {
  * One-call OTel setup for Squad SDK consumers.
  *
  * This is the **high-level** entry point. It:
- * 1. Initializes tracing and metrics via `initializeOTel()`.
- * 2. Optionally bridges an {@link EventBus} so every Squad event
- *    becomes an OTel span.
- * 3. Optionally installs an OTel-backed `TelemetryTransport` so
+ * 1. Auto-creates an {@link EventBus} (or uses one you supply).
+ * 2. Auto-creates a {@link CostTracker} wired to the EventBus.
+ * 3. Initializes tracing and metrics via `initializeOTel()`.
+ * 4. Bridges the EventBus so every Squad event becomes an OTel span.
+ * 5. Optionally installs an OTel-backed `TelemetryTransport` so
  *    the existing `TelemetryCollector` pipeline emits spans too.
  *
  * If no `OTEL_EXPORTER_OTLP_ENDPOINT` env var is set **and** no
  * `endpoint` is provided in `options`, everything remains a no-op.
  *
  * @param options - Configuration and optional EventBus.
- * @returns A handle with `tracing`, `metrics` status booleans and a
- *          `shutdown()` method for graceful cleanup.
+ * @returns A handle with `eventBus`, `costTracker`, status booleans,
+ *          and a `shutdown()` method for graceful cleanup.
  *
  * @example
  * ```ts
- * import { initSquadTelemetry, EventBus } from 'squad-sdk';
+ * import { initSquadTelemetry } from 'squad-sdk';
  *
- * const bus = new EventBus();
- * const telemetry = initSquadTelemetry({
- *   endpoint: 'http://localhost:4318',
- *   eventBus: bus,
- * });
+ * const telemetry = initSquadTelemetry();
+ * // That's it. Everything lights up.
  *
- * // … run your squad …
- *
+ * // Later:
+ * console.log(telemetry.costTracker.formatSummary());
  * await telemetry.shutdown();
  * ```
  */

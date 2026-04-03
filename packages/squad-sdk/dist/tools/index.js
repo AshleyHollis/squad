@@ -83,6 +83,15 @@ export function defineTool(config) {
         },
     };
 }
+// --- Error Sanitization ---
+/**
+ * Sanitize error messages before sending to LLM.
+ * Strips absolute filesystem paths by replacing the squadRoot prefix with [team-root].
+ */
+function sanitizeErrorForLlm(error, squadRoot) {
+    const msg = error instanceof Error ? error.message : String(error);
+    return msg.replace(new RegExp(squadRoot.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), '[team-root]');
+}
 // --- Tool Registry ---
 export class ToolRegistry {
     tools = new Map();
@@ -173,6 +182,9 @@ export class ToolRegistry {
                 required: ['author', 'summary', 'body'],
             },
             handler: async (args) => {
+                if (!/^[a-zA-Z0-9_-]+$/.test(args.author)) {
+                    return { textResultForLlm: 'Invalid author name: must contain only letters, numbers, hyphens, and underscores', resultType: 'failure', error: 'Invalid author' };
+                }
                 try {
                     const inboxDir = path.join(this.squadRoot, 'decisions', 'inbox');
                     fs.mkdirSync(inboxDir, { recursive: true });
@@ -198,14 +210,14 @@ export class ToolRegistry {
                     ].filter(Boolean).join('\n');
                     fs.writeFileSync(filename, content, 'utf-8');
                     return {
-                        textResultForLlm: `Decision written to ${filename} (ID: ${decisionId})`,
+                        textResultForLlm: `Decision written: ${args.author}-${slug}.md (ID: ${decisionId})`,
                         resultType: 'success',
                         toolTelemetry: { decisionId, filename, slug },
                     };
                 }
                 catch (error) {
                     return {
-                        textResultForLlm: `Failed to write decision: ${error}`,
+                        textResultForLlm: `Failed to write decision: ${sanitizeErrorForLlm(error, this.squadRoot)}`,
                         resultType: 'failure',
                         error: String(error),
                     };
@@ -236,11 +248,14 @@ export class ToolRegistry {
                 required: ['agent', 'section', 'content'],
             },
             handler: async (args) => {
+                if (!/^[a-zA-Z0-9_-]+$/.test(args.agent)) {
+                    return { textResultForLlm: 'Invalid agent name: must contain only letters, numbers, hyphens, and underscores', resultType: 'failure', error: 'Invalid agent name' };
+                }
                 try {
                     const historyFile = path.join(this.squadRoot, 'agents', args.agent, 'history.md');
                     if (!fs.existsSync(historyFile)) {
                         return {
-                            textResultForLlm: `Agent history file not found: ${historyFile}`,
+                            textResultForLlm: `Agent history file not found: agents/${args.agent}/history.md`,
                             resultType: 'failure',
                             error: 'History file does not exist',
                         };
@@ -270,7 +285,7 @@ export class ToolRegistry {
                 }
                 catch (error) {
                     return {
-                        textResultForLlm: `Failed to update agent memory: ${error}`,
+                        textResultForLlm: `Failed to update agent memory: ${sanitizeErrorForLlm(error, this.squadRoot)}`,
                         resultType: 'failure',
                         error: String(error),
                     };
@@ -369,7 +384,7 @@ export class ToolRegistry {
         // squad_skill: Read/write agent skills
         const squadSkill = defineTool({
             name: 'squad_skill',
-            description: 'Read or write agent skill definitions. Skills are stored in .squad/skills/{name}/SKILL.md.',
+            description: 'Read or write agent skill definitions. Skills are stored in .copilot/skills/{name}/SKILL.md.',
             parameters: {
                 type: 'object',
                 properties: {
@@ -395,8 +410,18 @@ export class ToolRegistry {
                 required: ['skillName', 'operation'],
             },
             handler: async (args) => {
+                if (!/^[a-zA-Z0-9_-]+$/.test(args.skillName)) {
+                    return { textResultForLlm: 'Invalid skill name: must contain only letters, numbers, hyphens, and underscores', resultType: 'failure', error: 'Invalid skillName' };
+                }
                 try {
-                    const skillDir = path.join(this.squadRoot, 'skills', args.skillName);
+                    const projectRoot = path.dirname(this.squadRoot);
+                    const legacySkillDir = path.join(this.squadRoot, 'skills', args.skillName);
+                    const copilotSkillDir = path.join(projectRoot, '.copilot', 'skills', args.skillName);
+                    const skillDir = args.operation === 'write'
+                        ? copilotSkillDir
+                        : fs.existsSync(path.join(copilotSkillDir, 'SKILL.md'))
+                            ? copilotSkillDir
+                            : legacySkillDir;
                     const skillFile = path.join(skillDir, 'SKILL.md');
                     if (args.operation === 'read') {
                         if (!fs.existsSync(skillFile)) {
@@ -433,7 +458,7 @@ export class ToolRegistry {
                         ].join('\n');
                         fs.writeFileSync(skillFile, skillContent, 'utf-8');
                         return {
-                            textResultForLlm: `Skill written: ${args.skillName} (${skillFile})`,
+                            textResultForLlm: `Skill written: ${args.skillName} (.copilot/skills/${args.skillName}/SKILL.md)`,
                             resultType: 'success',
                             toolTelemetry: { skillName: args.skillName, operation: 'write', confidence: args.confidence },
                         };
@@ -441,7 +466,7 @@ export class ToolRegistry {
                 }
                 catch (error) {
                     return {
-                        textResultForLlm: `Failed to ${args.operation} skill: ${error}`,
+                        textResultForLlm: `Failed to ${args.operation} skill: ${sanitizeErrorForLlm(error, this.squadRoot)}`,
                         resultType: 'failure',
                         error: String(error),
                     };
@@ -470,6 +495,22 @@ export class ToolRegistry {
     /** Get a specific tool by name */
     getTool(name) {
         return this.tools.get(name);
+    }
+    /**
+     * Replace built-in tool handlers with skill-backed versions.
+     * Called post-construction after SkillScriptLoader has resolved handlers.
+     * Only replaces tools that already exist — unknown tool names are silently ignored.
+     * Once applied, handlers are immutable for the session.
+     *
+     * Skill handlers are already OTel-wrapped by SkillScriptLoader.load() — no re-wrapping here.
+     */
+    applySkillHandlers(tools) {
+        for (const tool of tools) {
+            if (this.tools.has(tool.name)) {
+                this.tools.set(tool.name, tool);
+            }
+            // Unknown tool names silently ignored — skills cannot introduce new tools
+        }
     }
 }
 //# sourceMappingURL=index.js.map
