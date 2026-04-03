@@ -44,6 +44,8 @@ Templates scaffolded into `.squad/templates/` during init:
 | `templates/spec/*` | New — 5 feature-level templates |
 | `docs/ralph-specum/` | New — implementation spec and reference guide |
 
+See [`docs/ralph-specum/fork-changes.md`](docs/ralph-specum/fork-changes.md) for the full diff narrative, per-file change details, and the upstream merge checklist.
+
 ### Install This Fork
 
 #### Option 1: Global install (persistent `squad` command)
@@ -73,6 +75,8 @@ npx -y github:AshleyHollis/squad#ralph-specum
 #### After installing
 
 Open Copilot, select Squad, and describe what you're building. The coordinator will route to the Spec agent to establish project principles before any code is written.
+
+📖 **[How to use the Spec agent →](docs/ralph-specum/spec-agent-guide.md)**
 
 ### Keeping Up with Upstream
 
