@@ -9,6 +9,7 @@
   },
   "files": [
     "index.cjs",
+    "lib/",
     ".github/",
     "packages/squad-cli/dist/",
     "packages/squad-cli/package.json",
