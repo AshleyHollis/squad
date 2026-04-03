@@ -113,7 +113,9 @@ export async function runStart(cwd: string, options: StartOptions): Promise<void
       console.log(`${YELLOW}⚠${RESET} Tunnel failed: ${(err as Error).message}`);
     }
   } else if (options.tunnel) {
-    console.log(`${YELLOW}⚠${RESET} devtunnel not installed. Local mirror on port ${actualPort}.`);
+    const localUrl = `http://localhost:${actualPort}?token=${bridge.getSessionToken()}`;
+    console.log(`${YELLOW}⚠${RESET} devtunnel not installed. Install with: winget install Microsoft.devtunnel`);
+    console.log(`${GREEN}✓${RESET} Local: ${BOLD}${localUrl}${RESET}`);
   }
 
   // ─── Spawn copilot in PTY ─────────────────────────────────
