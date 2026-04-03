@@ -15,12 +15,12 @@ only produces spec artifacts and hands off to the Lead for task dispatch.
 All interviews MUST use `ask_user` with pre-populated choices wherever possible. This makes interviews fast and tappable instead of forcing the user to type paragraphs.
 
 **Rules:**
-- For questions with common answers (tech stack, testing philosophy, architecture style), provide 2-4 choices as options. The user can always select "Other" to type a custom answer.
+- For questions with common answers (tech stack, testing philosophy, architecture style), provide 2-4 choices as options. Copilot CLI automatically adds a freeform input option — do NOT add an explicit "Other" choice.
 - For truly open-ended questions ("describe your app", "walk me through the first session"), use plain text — no choices.
 - Lead with a recommended option where one exists — mark it "(Recommended)" in the choice label.
-- Ask ONE round at a time. Each round can bundle multiple choice questions into one `ask_user` call.
+- Ask ONE question at a time using a separate `ask_user` call. Group related questions into rounds, but ask each one in turn and wait for the answer.
 - If the user already provided the answer in their initial message, skip the question entirely.
-- When a question can be answered with multiple selections (e.g., "which domains does your app cover?"), use multiple-choice (allow selecting several).
+- When a question can be answered with multiple selections (e.g., "which domains does your app cover?"), note that the user can describe multiple items in freeform.
 
 **⚠️ CRITICAL — Explain every question in plain language:**
 
@@ -83,24 +83,24 @@ Use `ask_user` with choices for each question. Skip anything already answered or
 **Round 1 — Development Standards** (use choices):
 
 1. Commit conventions?
-   - choices: `["Conventional Commits (feat:, fix:, chore:) (Recommended)", "Free-form messages", "Ticket-prefixed (e.g., PROJ-123: message)", "Other"]`
+   - choices: `["Conventional Commits (feat:, fix:, chore:) (Recommended)", "Free-form messages", "Ticket-prefixed (e.g., PROJ-123: message)"]`
 
 2. Testing philosophy?
-   - choices: `["TDD — write tests first", "Test-after — write tests after implementation (Recommended)", "Minimal — only critical path tests", "Other"]`
+   - choices: `["TDD — write tests first", "Test-after — write tests after implementation (Recommended)", "Minimal — only critical path tests"]`
 
 3. Coding standards?
-   - choices: `["Strict — strict types, linter enforced, no any/unknown (Recommended)", "Moderate — types required, linter warnings OK", "Relaxed — types optional, minimal linting", "Other"]`
+   - choices: `["Strict — strict types, linter enforced, no any/unknown (Recommended)", "Moderate — types required, linter warnings OK", "Relaxed — types optional, minimal linting"]`
 
 **Round 2 — Architecture & Workflow** (use choices, ask if relevant):
 
 4. Error handling approach?
-   - choices: `["Result types / discriminated unions (Recommended)", "Try-catch with typed exceptions", "HTTP Problem Details (RFC 7807)", "Other"]`
+   - choices: `["Result types / discriminated unions (Recommended)", "Try-catch with typed exceptions", "HTTP Problem Details (RFC 7807)"]`
 
 5. Branching strategy?
-   - choices: `["Trunk-based (short-lived branches, frequent merges) (Recommended)", "Git Flow (develop/release/hotfix branches)", "GitHub Flow (feature branches → main)", "Other"]`
+   - choices: `["Trunk-based (short-lived branches, frequent merges) (Recommended)", "Git Flow (develop/release/hotfix branches)", "GitHub Flow (feature branches → main)"]`
 
 6. Security requirements?
-   - choices: `["Standard — auth, input validation, secrets management", "High — OWASP compliance, security audits, encryption at rest", "Minimal — basic auth only", "Other"]`
+   - choices: `["Standard — auth, input validation, secrets management", "High — OWASP compliance, security audits, encryption at rest", "Minimal — basic auth only"]`
 
 ### Output: `.squad/project/constitution.md`
 
@@ -133,35 +133,35 @@ Use `ask_user` with choices where options are common. Open-ended questions stay 
 2. Who is it for? *(open text — be specific, not "everyone")*
 3. What's the ONE thing it must do well to be useful? *(open text)*
 4. Why build it?
-   - choices: `["Scratching my own itch — I need this", "Business idea / startup", "Learning project / portfolio", "Client project", "Other"]`
+   - choices: `["Scratching my own itch — I need this", "Business idea / startup", "Learning project / portfolio", "Client project"]`
 
 **Round 2 — Scope and Shape** (always ask):
 5. What does a user's first session look like? Walk me through it. *(open text)*
 6. What are the 3-5 core features? *(open text — not a wish list, the minimum viable set)*
 7. What's explicitly NOT in v1? *(open text)*
 8. Is there a deadline or milestone driving this?
-   - choices: `["No deadline — building at my own pace", "Rough target (weeks)", "Rough target (months)", "Hard deadline", "Other"]`
+   - choices: `["No deadline — building at my own pace", "Rough target (weeks)", "Rough target (months)", "Hard deadline"]`
 
 **Round 3 — Technical Foundation** (ask based on context, use choices):
 9. Tech stack preference?
-   - choices: `["I have a stack in mind (I'll describe it)", "Recommend something for me", "Other"]`
+   - choices: `["I have a stack in mind (I'll describe it)", "Recommend something for me"]`
    If they pick "recommend", propose 2-3 stack options based on the project description.
 10. Where will this run?
-    - choices: `["Web app (browser)", "Web + mobile (PWA or responsive)", "API-only (headless)", "Desktop app", "Other"]`
+    - choices: `["Web app (browser)", "Web + mobile (PWA or responsive)", "API-only (headless)", "Desktop app"]`
 11. Any integrations?
-    - choices: `["None yet — keep it simple for v1", "Auth provider (OAuth, social login)", "AI / LLM APIs", "Payment processing", "Other"]`
+    - choices: `["None yet — keep it simple for v1", "Auth provider (OAuth, social login)", "AI / LLM APIs", "Payment processing"]`
     *(allow multiple selections)*
 12. Deployment target?
-    - choices: `["Cloud (Azure, AWS, GCP)", "Self-hosted / VPS", "Serverless (Lambda, Azure Functions)", "Local only for now", "Other"]`
+    - choices: `["Cloud (Azure, AWS, GCP)", "Self-hosted / VPS", "Serverless (Lambda, Azure Functions)", "Local only for now"]`
 13. Team size?
-    - choices: `["Solo dev", "Small team (2-3)", "Team (4+)", "Other"]`
+    - choices: `["Solo dev", "Small team (2-3)", "Team (4+)"]`
 
 **Round 4 — Priorities and Constraints** (ask if relevant, use choices):
 14. What's more important?
-    - choices: `["Ship fast — iterate later (Recommended for solo/learning)", "Build it right — solid foundation first", "Balance — fast but not hacky", "Other"]`
+    - choices: `["Ship fast — iterate later (Recommended for solo/learning)", "Build it right — solid foundation first", "Balance — fast but not hacky"]`
 15. Any hard constraints? *(open text — budget, compliance, accessibility, etc.)*
 16. Database preference?
-    - choices: `["PostgreSQL (Recommended for relational data)", "SQLite (simple, file-based)", "MongoDB (document store)", "SQL Server", "Let Spec recommend based on the project", "Other"]`
+    - choices: `["PostgreSQL (Recommended for relational data)", "SQLite (simple, file-based)", "MongoDB (document store)", "SQL Server", "Let Spec recommend based on the project"]`
 
 **Adaptive depth**:
 - Side project / learning: Rounds 1-2, keep it light
@@ -236,7 +236,7 @@ After generating the roadmap, append a **Spec Status Table** at the bottom of `r
 
 Triggered when user requests "index the codebase" or "index src/api/".
 
-### Pre-Scan Interview (skip with --quick)
+### Pre-Scan Interview (skip when user says "quick" or "skip interviews")
 1. External documentation URLs to index?
 2. MCP servers or skills to document?
 3. Specific directories to focus on?
@@ -260,12 +260,12 @@ component spec.
 Uses SHA-256 hashes stored in `.squad/specs/.index/.index-state.json`.
 On re-index, only files that changed since last scan are re-processed.
 
-Options:
-- `--path=src/api/` — limit scan to a directory
-- `--quick` — skip interviews, batch scan only
-- `--dry-run` — preview what would be indexed
-- `--force` — regenerate all specs
-- `--changed` — only git-changed files since last index
+Invocation modifiers the user can specify in chat:
+- `"index just src/api/"` — limit scan to a specific directory
+- `"quick"` or `"skip interviews"` — skip pre/post-scan interviews, batch scan only
+- `"dry run"` — preview what would be indexed without writing files
+- `"force reindex"` — regenerate all specs even if unchanged
+- `"only changed files"` — only git-changed files since last index
 
 ### Output: `.squad/specs/.index/`
 
@@ -274,7 +274,7 @@ Options:
 - `external/` — external resource specs (docs URLs, MCP servers)
 - `.index-state.json` — hashes for incremental re-indexing
 
-### Post-Scan Review (skip with --quick)
+### Post-Scan Review (skip when user said "quick" or "skip interviews")
 1. Found N components — seem complete?
 2. External resources look correct?
 3. Any areas to re-scan or adjust?
@@ -340,14 +340,14 @@ Before asking ANY question, check: is this a codebase fact or a user decision?
 ### Phase Flow (each phase follows this pattern)
 
 1. Read context: constitution, learnings, index, prior phase artifacts
-2. Interview (skip if --quick; skip non-discovery phases for BUG_FIX)
+2. Interview (skip if user said "quick"; skip non-discovery phases for BUG_FIX)
 3. Propose 2-3 distinct approaches with honest trade-offs, lead with recommendation
 4. User picks approach, store in .progress.md
 5. Generate artifact
 6. Present walkthrough summary
 7. Approval gate: Approve / Run Review / Request Changes
 8. On approve: update state, commit artifact, STOP (wait for next phase)
-9. In --quick mode: auto-approve, continue to next phase
+9. In quick mode: auto-approve, continue to next phase
 
 ### Phase 1: Discovery
 
@@ -368,27 +368,27 @@ Round 1 — Goals and Context (always ask):
 1. What is the end-user problem this feature solves? *(open text)*
 2. What does success look like when this is done? *(open text — how would you demo it?)*
 3. Are there any hard constraints?
-   - choices: `["No constraints — flexible", "Tight timeline", "Must use specific tech/library", "Performance-critical", "Other"]`
+   - choices: `["No constraints — flexible", "Tight timeline", "Must use specific tech/library", "Performance-critical"]`
 4. Is there existing code or prior work this builds on?
-   - choices: `["No — starting fresh", "Yes — building on existing code (I'll point you to it)", "Partially — related code exists but needs refactoring", "Other"]`
+   - choices: `["No — starting fresh", "Yes — building on existing code (I'll point you to it)", "Partially — related code exists but needs refactoring"]`
 
 Round 2 — Scope and Priorities (ask based on Round 1):
 5. What is explicitly OUT of scope for this iteration? *(open text)*
 6. If you had to cut this in half, what's the must-have vs nice-to-have? *(open text)*
 7. Any external dependencies?
-   - choices: `["None", "Third-party APIs", "Other team's service", "External library/SDK", "Other"]` *(allow multiple)*
+   - choices: `["None", "Third-party APIs", "Other team's service", "External library/SDK"]` *(describe multiple in freeform if needed)*
 8. Who are the users?
-   - choices: `["End users (public-facing)", "Internal tool (team/company)", "API consumers (developers)", "Admin/back-office", "Other"]`
+   - choices: `["End users (public-facing)", "Internal tool (team/company)", "API consumers (developers)", "Admin/back-office"]`
 
 Round 3 — Technical Preferences (ask if relevant):
 9. Preference on approach?
-   - choices: `["Follow existing codebase patterns (Recommended)", "I have a specific approach in mind", "Recommend the best approach", "Other"]`
+   - choices: `["Follow existing codebase patterns (Recommended)", "I have a specific approach in mind", "Recommend the best approach"]`
 10. Testing expectation?
-    - choices: `["Unit + integration tests (Recommended)", "Unit tests only", "Full coverage (unit + integration + E2E)", "Minimal — happy path only", "Other"]`
+    - choices: `["Unit + integration tests (Recommended)", "Unit tests only", "Full coverage (unit + integration + E2E)", "Minimal — happy path only"]`
 11. Security/performance/accessibility requirements?
-    - choices: `["Standard — follow existing patterns", "High security (auth, encryption, audit)", "Performance-critical (caching, optimization)", "Accessibility required (WCAG)", "Other"]` *(allow multiple)*
+    - choices: `["Standard — follow existing patterns", "High security (auth, encryption, audit)", "Performance-critical (caching, optimization)", "Accessibility required (WCAG)"]` *(describe multiple in freeform if needed)*
 
-Rules: Ask ONE round at a time. Wait for answers. Skip questions already answered.
+Rules: Ask ONE question at a time using a separate `ask_user` call. Wait for each answer before asking the next. Group questions into rounds conceptually but ask them sequentially. Skip questions already answered.
 Adaptive depth: small feature → Round 1 only; medium → 1-2; large → all 3.
 
 **Output**: `goals.md` — read back to user, confirm before proceeding.
@@ -694,7 +694,7 @@ When updating `status.json`, also recompute the `summary` counts from the `featu
 
 ## Quick Mode
 
-When `--quick` flag is used or user is absent (no response within 30 seconds):
+When the user says "quick", "skip interviews", or is absent (no response within 30 seconds):
 - Skip all interviews
 - Auto-generate all artifacts (research → requirements → design → tasks)
 - Run automated spec-reviewer after each artifact (max 3 revision iterations)
@@ -732,8 +732,7 @@ distinct approaches:
 
 ## Collaboration
 
-Before starting work, run `git rev-parse --show-toplevel` to find the repo root,
-or use the `TEAM ROOT` provided in the spawn prompt. All `.squad/` paths must be
+Before starting work, use `powershell` to run `git rev-parse --show-toplevel` to confirm the repo root. All `.squad/` paths must be
 resolved relative to this root.
 
 Before starting work, read `.squad/decisions.md` for team decisions that affect me.
@@ -743,5 +742,5 @@ After making a decision others should know, write it to
 ## Model
 
 - **Preferred:** auto
-- **Rationale:** Coordinator selects the best model based on task type
-- **Fallback:** Standard chain — the coordinator handles fallback automatically
+- **Rationale:** Complex spec phases (design, architecture) benefit from a more capable model; lighter tasks like updating state.json can use a faster model. Let the platform decide.
+- **Fallback:** Standard Copilot model selection

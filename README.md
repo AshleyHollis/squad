@@ -84,6 +84,20 @@ git checkout ralph-specum && git rebase main
 
 See `docs/ralph-specum/squad-spec-guide.md` Part 1 for full details.
 
+### Updating your Squad installation
+
+When this fork ships new changes, update your global CLI first, then refresh templates in each project:
+
+```bash
+# 1. Update the CLI to pick up the latest from this fork
+npm install -g github:AshleyHollis/squad#ralph-specum
+
+# 2. In each project that uses Squad, update its templates
+squad upgrade
+```
+
+`squad upgrade` overwrites Squad-owned files (templates, coordinator prompt, workflows) while preserving your team's `.squad/` state (agents, decisions, history).
+
 ---
 
 # Squad (Original README)
@@ -119,6 +133,8 @@ git init
 **✓ Validate:** Run `git status` — you should see "No commits yet".
 
 ### 2. Install Squad
+
+> **Note for fork users:** If you installed from this fork (`github:AshleyHollis/squad#ralph-specum`), use that source — not `@bradygaster/squad-cli` — to keep the Spec agent and other customizations. See [Install This Fork](#install-this-fork) above.
 
 ```bash
 npm install -g @bradygaster/squad-cli
