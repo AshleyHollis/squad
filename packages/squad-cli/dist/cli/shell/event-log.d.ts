@@ -4,7 +4,7 @@
  * Survives session restarts. Used by `/logs` to show what happened in prior sessions.
  * All writes are non-fatal — logging must never crash the main flow.
  */
-export type SquadEventType = 'coordinator_routed' | 'coordinator_direct' | 'coordinator_fallback' | 'agent_spawn_start' | 'agent_spawn_complete' | 'agent_spawn_error' | 'agent_spawn_stub';
+export type SquadEventType = 'coordinator_routed' | 'coordinator_routed_narrative' | 'coordinator_direct' | 'coordinator_fallback' | 'agent_spawn_start' | 'agent_spawn_complete' | 'agent_spawn_error' | 'agent_spawn_stub';
 export interface SquadEvent {
     ts: string;
     type: SquadEventType;

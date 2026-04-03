@@ -212,6 +212,7 @@ function handleLogs(args, context) {
     }
     const TYPE_ICON = {
         coordinator_routed: '📌',
+        coordinator_routed_narrative: '📌⚠️',
         coordinator_direct: '💬',
         coordinator_fallback: '⚠️ ',
         agent_spawn_start: '▶ ',
@@ -231,9 +232,10 @@ function handleLogs(args, context) {
             detail = ` — ${e.task.slice(0, 60)}${e.task.length > 60 ? '...' : ''}`;
         return `  [${time}] ${icon} ${e.type}${agent}${ms}${detail}`;
     });
-    // Surface any fallback events prominently
+    // Surface fallback events prominently (no agent was dispatched)
     const fallbacks = events.filter(e => e.type === 'coordinator_fallback');
-    const hint = fallbacks.length > 0
+    const narratives = events.filter(e => e.type === 'coordinator_routed_narrative');
+    const fallbackHint = fallbacks.length > 0
         ? [
             '',
             `⚠️  ${fallbacks.length} coordinator_fallback event${fallbacks.length > 1 ? 's' : ''} detected.`,
@@ -245,9 +247,17 @@ function handleLogs(args, context) {
             '   For full debug output: SQUAD_DEBUG=1 squad',
         ].join('\n')
         : '';
+    const narrativeHint = narratives.length > 0
+        ? [
+            '',
+            `ℹ️  ${narratives.length} coordinator_routed_narrative event${narratives.length > 1 ? 's' : ''} detected.`,
+            '   The coordinator wrote prose instead of ROUTE: format, but agent names were extracted',
+            '   and the task was dispatched anyway. The prompt enforcement may be helping — watch for improvement.',
+        ].join('\n')
+        : '';
     return {
         handled: true,
-        output: `Last ${events.length} event${events.length !== 1 ? 's' : ''}:\n${lines.join('\n')}${hint}`,
+        output: `Last ${events.length} event${events.length !== 1 ? 's' : ''}:\n${lines.join('\n')}${fallbackHint}${narrativeHint}`,
     };
 }
 function handleInit(args, context) {

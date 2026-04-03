@@ -9,13 +9,14 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 export type SquadEventType =
-  | 'coordinator_routed'    // coordinator decided ROUTE: or MULTI: → agent dispatched
-  | 'coordinator_direct'    // coordinator responded DIRECT: (intentional, no routing needed)
-  | 'coordinator_fallback'  // coordinator response didn't match expected format — no agent spawned
-  | 'agent_spawn_start'     // agent spawn beginning
-  | 'agent_spawn_complete'  // agent spawn succeeded
-  | 'agent_spawn_error'     // agent spawn failed
-  | 'agent_spawn_stub';     // spawnAgent called without a client — returned stub immediately
+  | 'coordinator_routed'           // coordinator used ROUTE:/MULTI: format → agent dispatched
+  | 'coordinator_routed_narrative' // coordinator wrote prose but agent names were extracted → agent dispatched
+  | 'coordinator_direct'           // coordinator responded DIRECT: (intentional, no routing needed)
+  | 'coordinator_fallback'         // coordinator response didn't match expected format — no agent spawned
+  | 'agent_spawn_start'            // agent spawn beginning
+  | 'agent_spawn_complete'         // agent spawn succeeded
+  | 'agent_spawn_error'            // agent spawn failed
+  | 'agent_spawn_stub';            // spawnAgent called without a client — returned stub immediately
 
 export interface SquadEvent {
   ts: string;

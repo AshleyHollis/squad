@@ -30,6 +30,12 @@ export declare function buildInitModePrompt(config: CoordinatorConfig): string;
 export declare function buildCoordinatorPrompt(config: CoordinatorConfig): string;
 /**
  * Parse coordinator response to extract routing decisions.
+ *
+ * @param response  Raw LLM output from the coordinator.
+ * @param knownAgents  Optional list of known agent names (from team registry).
+ *   When provided and the LLM ignored the required format, the fallback parser
+ *   will scan the narrative for agent name mentions and synthesise a route so
+ *   agents are still dispatched even if the LLM didn't follow instructions.
  */
 export interface RoutingDecision {
     type: 'direct' | 'route' | 'multi';
@@ -40,7 +46,7 @@ export interface RoutingDecision {
         context?: string;
     }>;
 }
-export declare function parseCoordinatorResponse(response: string): RoutingDecision;
+export declare function parseCoordinatorResponse(response: string, knownAgents?: string[]): RoutingDecision;
 /**
  * Format conversation history for the coordinator context window.
  * Keeps recent messages, summarizes older ones.

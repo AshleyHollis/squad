@@ -252,22 +252,36 @@ ${routingContent}
 4. If ambiguous, pick the best match and explain your choice
 5. For status/factual questions, answer directly without spawning
 
-## Response Format
-When routing to an agent, respond with:
+## ⚠️ CRITICAL — Response Format (MANDATORY)
+
+You MUST begin your response with one of these exact prefixes. No exceptions.
+Do NOT write preamble, summaries, plans, or narrative before the prefix.
+Do NOT say "Here's what I'll do" or "I'll dispatch" — just output the format.
+
+When routing to a single agent:
 ROUTE: {agent_name}
 TASK: {what the agent should do}
 CONTEXT: {any relevant context}
 
-When answering directly:
+When answering directly (status, factual, no agent needed):
 DIRECT: {your answer}
 
-When routing to multiple agents:
+When routing to multiple agents in parallel:
 MULTI:
 - {agent1}: {task1}
 - {agent2}: {task2}
+
+WRONG (never do this):
+  "Here's the plan... Agent X will do Y... Dispatching now."
+  "I'll route this to Agent X."
+
+RIGHT:
+  ROUTE: AgentX
+  TASK: do Y
+  CONTEXT: relevant context
 `;
 }
-export function parseCoordinatorResponse(response) {
+export function parseCoordinatorResponse(response, knownAgents) {
     const trimmed = response.trim();
     // Direct answer
     if (trimmed.startsWith('DIRECT:')) {
@@ -307,7 +321,31 @@ export function parseCoordinatorResponse(response) {
             };
         }
     }
-    // Fallback — treat as direct answer
+    // Narrative fallback — the LLM wrote prose instead of using the required format.
+    // If we have known agent names, scan the narrative for mentions and synthesise a route.
+    if (knownAgents && knownAgents.length > 0) {
+        const lower = trimmed.toLowerCase();
+        const mentioned = knownAgents.filter(name => lower.includes(name.toLowerCase()));
+        if (mentioned.length === 1) {
+            // Single agent mentioned — route to them with the full narrative as context
+            return {
+                type: 'route',
+                routes: [{
+                        agent: mentioned[0],
+                        task: trimmed,
+                        context: '(Extracted from coordinator narrative — LLM did not use ROUTE: format)',
+                    }],
+            };
+        }
+        if (mentioned.length > 1) {
+            // Multiple agents mentioned — route all of them
+            return {
+                type: 'multi',
+                routes: mentioned.map(agent => ({ agent, task: trimmed })),
+            };
+        }
+    }
+    // Final fallback — treat as direct answer
     return { type: 'direct', directAnswer: trimmed };
 }
 /**

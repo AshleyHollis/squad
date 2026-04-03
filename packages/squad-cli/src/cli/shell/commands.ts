@@ -257,13 +257,14 @@ function handleLogs(args: string[], context: CommandContext): CommandResult {
   }
 
   const TYPE_ICON: Record<string, string> = {
-    coordinator_routed:   '📌',
-    coordinator_direct:   '💬',
-    coordinator_fallback: '⚠️ ',
-    agent_spawn_start:    '▶ ',
-    agent_spawn_complete: '✓ ',
-    agent_spawn_error:    '✗ ',
-    agent_spawn_stub:     '⚠️ ',
+    coordinator_routed:            '📌',
+    coordinator_routed_narrative:  '📌⚠️',
+    coordinator_direct:            '💬',
+    coordinator_fallback:          '⚠️ ',
+    agent_spawn_start:             '▶ ',
+    agent_spawn_complete:          '✓ ',
+    agent_spawn_error:             '✗ ',
+    agent_spawn_stub:              '⚠️ ',
   };
 
   const lines = events.map(e => {
@@ -277,9 +278,11 @@ function handleLogs(args: string[], context: CommandContext): CommandResult {
     return `  [${time}] ${icon} ${e.type}${agent}${ms}${detail}`;
   });
 
-  // Surface any fallback events prominently
+  // Surface fallback events prominently (no agent was dispatched)
   const fallbacks = events.filter(e => e.type === 'coordinator_fallback');
-  const hint = fallbacks.length > 0
+  const narratives = events.filter(e => e.type === 'coordinator_routed_narrative');
+
+  const fallbackHint = fallbacks.length > 0
     ? [
         '',
         `⚠️  ${fallbacks.length} coordinator_fallback event${fallbacks.length > 1 ? 's' : ''} detected.`,
@@ -292,9 +295,18 @@ function handleLogs(args: string[], context: CommandContext): CommandResult {
       ].join('\n')
     : '';
 
+  const narrativeHint = narratives.length > 0
+    ? [
+        '',
+        `ℹ️  ${narratives.length} coordinator_routed_narrative event${narratives.length > 1 ? 's' : ''} detected.`,
+        '   The coordinator wrote prose instead of ROUTE: format, but agent names were extracted',
+        '   and the task was dispatched anyway. The prompt enforcement may be helping — watch for improvement.',
+      ].join('\n')
+    : '';
+
   return {
     handled: true,
-    output: `Last ${events.length} event${events.length !== 1 ? 's' : ''}:\n${lines.join('\n')}${hint}`,
+    output: `Last ${events.length} event${events.length !== 1 ? 's' : ''}:\n${lines.join('\n')}${fallbackHint}${narrativeHint}`,
   };
 }
 

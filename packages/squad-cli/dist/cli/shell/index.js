@@ -726,14 +726,15 @@ export async function runShell() {
         }
         // Parse routing decision from coordinator response
         debugLog('coordinator accumulated (first 200 chars)', accumulated.slice(0, 200));
-        const decision = parseCoordinatorResponse(accumulated);
+        const decision = parseCoordinatorResponse(accumulated, knownAgentNames);
         debugLog('coordinator decision', { type: decision.type, hasRoutes: !!(decision.routes?.length), hasDirectAnswer: !!decision.directAnswer });
         // Log coordinator decision so `/logs` can surface routing problems
+        const usedStructuredFormat = /^(ROUTE:|MULTI:|DIRECT:)/m.test(accumulated.trim());
         if (decision.type === 'route' || decision.type === 'multi') {
             for (const route of decision.routes ?? []) {
                 writeEventLog(teamRoot, {
                     ts: new Date().toISOString(),
-                    type: 'coordinator_routed',
+                    type: usedStructuredFormat ? 'coordinator_routed' : 'coordinator_routed_narrative',
                     agent: route.agent.toLowerCase(),
                     task: route.task.slice(0, 200),
                 });
@@ -741,7 +742,6 @@ export async function runShell() {
         }
         else {
             // DIRECT or fallback: check whether the LLM actually used DIRECT: prefix or just ignored the format
-            const usedStructuredFormat = /^(ROUTE:|MULTI:|DIRECT:)/m.test(accumulated.trim());
             writeEventLog(teamRoot, {
                 ts: new Date().toISOString(),
                 type: usedStructuredFormat ? 'coordinator_direct' : 'coordinator_fallback',
