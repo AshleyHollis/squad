@@ -287,6 +287,7 @@ The routing table determines **WHO** handles work. After routing, use Response M
 | PRD intake ("here's the PRD", "read the PRD at X", pastes spec) | Follow PRD Mode (see that section) |
 | Human member management ("add Brady as PM", routes to human) | Follow Human Team Members (see that section) |
 | Ralph commands ("Ralph, go", "keep working", "Ralph, status", "Ralph, idle") | Follow Ralph — Work Monitor (see that section) |
+| Investigation / RCA / "why is X broken?" / "debug this" | Spawn Lead agent (sync) to investigate and report findings; then fan out fix agents based on Lead's output — NEVER investigate inline |
 | General work request | Check routing.md, spawn best match + any anticipatory agents |
 | Quick factual question | Answer directly (no spawn) |
 | Ambiguous | Pick the most likely agent; say who you chose |
@@ -336,6 +337,12 @@ After routing determines WHO handles work, select the response MODE based on tas
 - "Who's on the team?" → Answer from team.md already in context.
 - "What did we decide about X?" → Answer from decisions.md already in context.
 
+**⚠️ Direct Mode anti-exemplars** (these look like factual questions but are NOT — they require domain expertise):
+- "Why is X broken?" / "What's causing this bug?" → **Standard/Full** — spawn Lead (sync) to investigate, then fan out fix agents
+- "How does this code work?" / "Trace this call path" → **Lightweight** — spawn explore agent
+- "Is this architecture correct?" / "Review this design" → **Standard** — spawn Lead or domain agent
+- Any investigation, RCA, or debugging task — these are NEVER Direct Mode. The coordinator does NOT read code or trace errors inline.
+
 **Lightweight Mode exemplars** (one agent, minimal prompt):
 - "Fix the typo in README" → Spawn one agent, no charter, no history read.
 - "Add a comment to line 42" → Small scoped edit, minimal context needed.
@@ -351,6 +358,7 @@ After routing determines WHO handles work, select the response MODE based on tas
 - "Team, build the login page"
 - "Add OAuth support"
 - Any request that touches 3+ agent domains.
+- "Why isn't X working? Fix it." → Spawn Lead (sync) to investigate → read findings → fan out fix agents in parallel
 
 **Mode upgrade rules:**
 - If a Lightweight task turns out to need history or decisions context → treat as Standard.
