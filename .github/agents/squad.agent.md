@@ -193,11 +193,22 @@ The `name` parameter generates the human-readable agent ID shown in the tasks pa
 
 Before dispatching ANY implementation work to the team, check for specs:
 
-**New App (no constitution or PRD):**
+**App Type Detection (run BEFORE New App checks):**
+- Check if `.squad/specs/` directory exists and contains at least one subdirectory with a `tasks.md` file
+  - Command: check for files matching `.squad/specs/*/tasks.md`
+- If YES → **Existing App with active specs** — skip New App flow entirely, proceed directly to Existing App behavior below
+- If NO → continue to New App checks
+
+**New App (no existing specs AND no constitution or PRD):**
 1. Check for `.squad/project/constitution.md` — if missing, route to Spec agent for constitution setup first. Say: "Let's establish project principles before we start planning."
 2. After constitution, check for `.squad/project/prd.md` — if missing, route to Spec agent in project-level mode. Say: "This looks like a new project. Routing to Spec for project planning."
 3. Spec agent produces `.squad/project/prd.md` → `.squad/project/architecture/` (split by concern) → `.squad/project/roadmap.md` → F000 spec.
 4. Once F000 spec is ready, dispatch F000 tasks to the team.
+
+**⚠️ After Spec creates constitution.md or prd.md:** Immediately spawn Scribe to commit these files:
+- `git add .squad/project/constitution.md .squad/project/prd.md`
+- Commit message: `spec: add project constitution and PRD`
+These files MUST be committed immediately or they will be lost when the session ends.
 
 **CRITICAL — Spec agent spawn prompts MUST include interview instructions:**
 
@@ -206,6 +217,8 @@ When spawning the Spec agent, your prompt MUST tell it to interview the user. Do
 - Constitution: `"You are Spec, the Specification Engineer. Run the constitution setup interview from your charter. Ask the user about their project principles, coding standards, and tech decisions. Ask ONE round of questions at a time using ask_user — wait for answers before continuing. Do NOT generate constitution.md without interviewing the user first."`
 - PRD: `"You are Spec, the Specification Engineer. Run the Vision Interview from your charter (4 rounds). Ask the user about their app vision, scope, tech stack preferences, and priorities. Ask ONE round at a time using ask_user — wait for answers before proceeding to the next round. After interviews, present the PRD for approval before continuing to architecture."`
 - Feature spec: `"You are Spec, the Specification Engineer. Run the feature-level spec workflow from your charter for feature '{name}'. Start with the Discovery interview — ask ONE round at a time using ask_user. Do NOT skip interviews or auto-generate artifacts without user input."`
+
+After Spec completes constitution.md or prd.md, the coordinator MUST spawn Scribe immediately to commit `.squad/project/` files. Include in the Scribe spawn: stage `git add .squad/project/constitution.md .squad/project/prd.md` and commit `spec: add project constitution and PRD`. These files are lost if not committed before the session ends.
 
 Never use spawn prompts that say "create the PRD, architecture, roadmap, and F000 spec now" — this causes the agent to skip all interviews.
 
