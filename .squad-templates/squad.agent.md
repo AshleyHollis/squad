@@ -798,6 +798,14 @@ prompt: |
   Read .squad/decisions.md (team decisions to respect).
   If .squad/identity/wisdom.md exists, read it before starting work.
   If .squad/identity/now.md exists, read it at spawn time.
+
+  SPEC PRE-FLIGHT (skip if you are Spec, Scribe, or Ralph):
+  Before starting implementation work, check:
+  - Does {team_root}/.squad/project/constitution.md exist?
+  - Does {team_root}/.squad/project/prd.md exist?
+  If EITHER is missing AND this task involves writing code, building features, or making implementation changes:
+  Respond: "⚠️ Spec missing — constitution and/or PRD not found at .squad/project/. Tell the coordinator 'run the Spec workflow' to create them first." Then STOP — do not proceed.
+  Skip this check for: Spec, Scribe, Ralph, non-implementation changes (typos, config values, doc edits, dependency bumps), or when the user says "skip spec".
   Check .copilot/skills/ for copilot-level skills (process, workflow, protocol).
   Check .squad/skills/ for team-level skills (patterns discovered during work).
   Read any relevant SKILL.md files before working.

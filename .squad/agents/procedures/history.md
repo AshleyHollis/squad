@@ -196,3 +196,5 @@ Also updated: examples section (showing `name` + `description` pairs), anti-patt
 
 **Pattern:** When a PR branch has accumulated merge commits from dev, use `git rebase --onto dev <parent-of-first-PR-commit>` to cherry-pick only the relevant commits. This avoids conflict noise from old merge commits that are already in dev. Also: after template renames, the sync script may overwrite version stamps in the canonical file — revert those before pushing.
 
+📌 **Team update (2026-04-04T07:16:14Z):** Spec pre-flight gate orchestration complete. Agents now self-enforce spec-first workflow: if `constitution.md` or `prd.md` are missing from `.squad/project/`, implementation agents refuse and redirect to the Spec workflow. Changes deployed: (1) Charter template with Spec Pre-flight section in Collaboration block; (2) Spawn template with SPEC PRE-FLIGHT injection block. Both use TEAM_ROOT for worktree safety. Exception list uses concrete examples instead of "trivially small" language. Orchestration logs created. Decision inbox merged and deleted.
+

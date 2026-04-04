@@ -8110,3 +8110,34 @@ Triaged 14 untriaged issues (3 docs, 6 community features, 3 bugs, 2 questions).
 5. CI enforcement via `prerelease-version-guard` blocks PRs with prerelease versions. `skip-version-check` label is Surgeon-only.
 **Why:** Two incidents (PR #640, PR #116) caused by absent versioning policy. Full policy in `.squad/skills/versioning-policy/SKILL.md`.
 
+
+---
+
+### 2026-04-04: Spec Pre-flight Checks Added to Agent Templates
+
+**Authors:** Procedures  
+**Issue:** Spec-first enforcement gap
+
+## Problem
+
+When constitution.md and prd.md were missing from .squad/project/, the coordinator's spec-first gate could be bypassed. Implementation agents would start work without project specs, leading to scope drift and ungrounded features.
+
+## Solution
+
+Agents are now self-enforcing last line of defense. If spawned for implementation work and specs are missing, they **refuse** and redirect to the Spec workflow.
+
+## Changes Made
+
+### 1. Charter Template (.squad-templates/charter.md)
+
+Added a new ### Spec Pre-flight subsection to the ## Collaboration block, positioned immediately before the line about reading .squad/decisions.md.
+
+### 2. Spawn Template (.squad-templates/squad.agent.md)
+
+Added a SPEC PRE-FLIGHT block to the spawn template's prompt: section, immediately after the lines about reading history.md and decisions.md.
+
+Both use TEAM_ROOT for worktree path safety. Exception list uses concrete examples instead of "trivially small" language.
+
+## Pattern
+
+This establishes defense-in-depth for critical gates: coordinator enforces (primary), agent charters reinforce (secondary), spawn prompts inject at runtime (tertiary).
