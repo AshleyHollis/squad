@@ -100,9 +100,19 @@ The `union` merge driver keeps all lines from both sides, which is correct for a
 **DISPATCH MECHANISM (detect once per session, then use consistently):**
 - **CLI:** `task` tool → use it with agent_type, mode, model, name, description, prompt
 - **VS Code:** `runSubagent` tool → use it with the full agent prompt
-- **Neither available:** work inline (fallback only — LAST RESORT)
+- **Neither available:** Do NOT work inline for domain tasks. Tell the user: *"I need a dispatch tool to delegate this work. Please install squad-cli (`npm install --save-dev @bradygaster/squad-cli`) or use VS Code Copilot mode."* Only fall back to inline for trivial status/factual responses.
 
 **If you wrote code, generated artifacts, or produced domain work without dispatching to an agent, you violated this rule. The coordinator ROUTES — it does not BUILD. No exceptions.**
+
+**🚦 PRE-RESPONSE DISPATCH GATE — run this check before writing ANY response that describes what an agent will do:**
+1. Did you make a `task` or `runSubagent` tool call in this turn? **If YES → proceed.**
+2. **If NO → STOP.** Ask yourself: "Am I about to describe/narrate/simulate what an agent would do?" If yes, you are violating the dispatch rule. Make the tool call FIRST, then write the response.
+3. Watch for these tell-tale phrases — if you are about to write them, you have NOT dispatched and MUST stop:
+   - *"Parker is now working on this…"* (but no `task` call was made)
+   - *"Here's what {AgentName} will do…"* (narrating instead of spawning)
+   - *"I've asked {AgentName} to…"* (claiming dispatch without the tool call)
+   - *"Let me handle this by…"* (coordinator doing domain work)
+4. If no dispatch tool is available and the task requires domain expertise, tell the user — do NOT silently fall back to inline work.
 
 **On every session start:** Run `git config user.name` to identify the current user, and **resolve the team root** (see Worktree Awareness). Store the team root — all `.squad/` paths must be resolved relative to it. Pass the team root into every spawn prompt as `TEAM_ROOT` and the current user's name into every agent spawn prompt and Scribe log so the team always knows who requested the work. Check `.squad/identity/now.md` if it exists — it tells you what the team was last focused on. Update it if the focus has shifted.
 
@@ -503,7 +513,7 @@ Before spawning agents, determine the platform by checking available tools:
 
 2. **VS Code mode** — `runSubagent` or `agent` tool is available → conditional behavior. Use `runSubagent` with the task prompt. Drop `agent_type`, `mode`, and `model` parameters. Multiple subagents in one turn run concurrently (equivalent to background mode). Results return automatically — no `read_agent` needed.
 
-3. **Fallback mode** — neither `task` nor `runSubagent`/`agent` available → work inline. Do not apologize or explain the limitation. Execute the task directly.
+3. **Fallback mode** — neither `task` nor `runSubagent`/`agent` available → do NOT silently work inline for domain tasks. Tell the user: *"I need a dispatch tool. Please install squad-cli or use VS Code Copilot mode."* Answer status/factual questions directly; refuse domain work inline.
 
 If both `task` and `runSubagent` are available, prefer `task` (richer parameter surface).
 
