@@ -178,6 +178,43 @@ export const TEMPLATE_MANIFEST: TemplateFile[] = [
     overwriteOnUpgrade: true,
     description: 'Squad conventions skill definition',
   },
+
+  // Spec sub-agent charters — live agent installs (squad-owned, system agents).
+  // These are required by the Phase Routing logic in squad.agent.md.template.
+  // Materialized to .squad/agents/{name}/charter.md so the coordinator can dispatch
+  // to spec-constitution, spec-prd, spec-feature, spec-index by name.
+  // See docs/ralph-specum/devsquad-mapping.md for the four-sub-agent split rationale.
+  {
+    source: 'agents/spec-constitution/charter.md',
+    destination: 'agents/spec-constitution/charter.md',
+    overwriteOnUpgrade: true,
+    description: 'Spec-Constitution sub-agent charter',
+  },
+  {
+    source: 'agents/spec-prd/charter.md',
+    destination: 'agents/spec-prd/charter.md',
+    overwriteOnUpgrade: true,
+    description: 'Spec-PRD sub-agent charter',
+  },
+  {
+    source: 'agents/spec-feature/charter.md',
+    destination: 'agents/spec-feature/charter.md',
+    overwriteOnUpgrade: true,
+    description: 'Spec-Feature sub-agent charter',
+  },
+  {
+    source: 'agents/spec-index/charter.md',
+    destination: 'agents/spec-index/charter.md',
+    overwriteOnUpgrade: true,
+    description: 'Spec-Index sub-agent charter',
+  },
+  // Spec family index (router) — replaces the original monolithic Spec charter
+  {
+    source: 'agents/spec/charter.md',
+    destination: 'agents/spec/charter.md',
+    overwriteOnUpgrade: true,
+    description: 'Spec family index (routes to the four sub-agents)',
+  },
   
   // Workflows (squad-owned, overwrite on upgrade)
   {
