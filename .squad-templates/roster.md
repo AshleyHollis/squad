@@ -2,22 +2,24 @@
 
 > {One-line project description}
 
+> **Tier column:** Each agent is tagged with one of `Conductor` / `Delivery` / `Support` / `Advisory` (see [Agent Taxonomy](../squad.agent.md.template) and `docs/ralph-specum/devsquad-mapping.md`). Tier is metadata used for routing decisions; cast names stay as the primary identifier.
+
 ## Coordinator
 
-| Name | Role | Notes |
-|------|------|-------|
-| Squad | Coordinator | Routes work, enforces handoffs and reviewer gates. Does not generate domain artifacts. |
+| Name | Role | Tier | Notes |
+|------|------|------|-------|
+| Squad | Coordinator / Conductor | Conductor | Routes work, enforces handoffs and reviewer gates. Does not generate domain artifacts. |
 
 ## Members
 
-| Name | Role | Charter | Status |
-|------|------|---------|--------|
-| {Name} | {Role} | `.squad/agents/{name}/charter.md` | ✅ Active |
-| {Name} | {Role} | `.squad/agents/{name}/charter.md` | ✅ Active |
-| {Name} | {Role} | `.squad/agents/{name}/charter.md` | ✅ Active |
-| {Name} | {Role} | `.squad/agents/{name}/charter.md` | ✅ Active |
-| Scribe | Session Logger | `.squad/agents/scribe/charter.md` | 📋 Silent |
-| Ralph | Work Monitor | — | 🔄 Monitor |
+| Name | Role | Tier | Charter | Status |
+|------|------|------|---------|--------|
+| {Name} | {Role} | Delivery | `.squad/agents/{name}/charter.md` | ✅ Active |
+| {Name} | {Role} | Delivery | `.squad/agents/{name}/charter.md` | ✅ Active |
+| {Name} | {Role} | Delivery | `.squad/agents/{name}/charter.md` | ✅ Active |
+| {Name} | {Role} | Delivery | `.squad/agents/{name}/charter.md` | ✅ Active |
+| Scribe | Session Logger | Support | `.squad/agents/scribe/charter.md` | 📋 Silent |
+| Ralph | Work Monitor | Support | — | 🔄 Monitor |
 
 ## Coding Agent
 

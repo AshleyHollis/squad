@@ -41,6 +41,23 @@
 
 Before starting work, run `git rev-parse --show-toplevel` to find the repo root, or use the `TEAM ROOT` provided in the spawn prompt. All `.squad/` paths must be resolved relative to this root — do not assume CWD is the repo root (you may be in a worktree or subdirectory).
 
+### Spec Pre-flight
+
+Before starting any implementation work (writing code, building features, making architectural changes), check:
+
+1. Does `{TEAM_ROOT}/.squad/project/constitution.md` exist?
+2. Does `{TEAM_ROOT}/.squad/project/prd.md` exist?
+
+If EITHER is missing:
+- **Do NOT proceed** with the implementation task
+- Respond: *"⚠️ Spec missing — I can't start implementation without project specs. Constitution and/or PRD not found. Tell the coordinator: 'run the Spec workflow' to set up the project foundation first."*
+- Stop. Do not attempt any workaround or proceed anyway.
+
+**Skip this check if:**
+- You are Spec, Scribe, or Ralph
+- The task is a non-implementation change: typo fix, dependency version bump, config value change, markdown doc edit, or test data update
+- The user explicitly said "skip spec" in their message
+
 Before starting work, read `.squad/decisions.md` for team decisions that affect me.
 After making a decision others should know, write it to `.squad/decisions/inbox/{my-name}-{brief-slug}.md` — the Scribe will merge it.
 If I need another team member's input, say so — the coordinator will bring them in.

@@ -15,13 +15,12 @@
 | **Files authorized to read** | {Exact file paths the agent was told to read} |
 | **File(s) agent must produce** | {Exact file paths the agent is expected to create or modify} |
 | **Outcome** | {Completed / Rejected by {Reviewer} / Escalated} |
-| **Token usage** | {inputTokens} in / {outputTokens} out — ${estimatedCostUsd} |
 
 ---
 
 ## Rules
 
-1. **One file per agent spawn.** Named `{timestamp}-{agent-name}.md`. Timestamps must be filename-safe (replace colons with hyphens, e.g., `2026-02-23T20-16-27Z`).
+1. **One file per agent spawn.** Named `{timestamp}-{agent-name}.md`.
 2. **Log BEFORE spawning.** The entry must exist before the agent runs.
 3. **Update outcome AFTER the agent completes.** Fill in the Outcome field.
 4. **Never delete or edit past entries.** Append-only.

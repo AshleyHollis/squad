@@ -6,225 +6,234 @@ This document describes everything this fork adds or changes relative to upstrea
 
 ## Summary
 
-This fork adds a **Spec-driven development workflow** built on the ralph-specum methodology. Before Squad fans out implementation work, a dedicated Spec agent runs structured specification phases — constitution, PRD, architecture, roadmap, and per-feature specs. Only after specs are approved does implementation begin.
+This fork **aligns Squad's coordinator and Spec workflow with [Microsoft's DevSquad](https://microsoft.github.io/devsquad-copilot/) framework** while preserving all Squad-only execution features (casting, personal squad, drop-box pattern, worktrees, eager parallel fan-out, per-agent model selection).
+
+**The strategic shift (commit `9df87b17`, 2026-05-09):** Squad's original monolithic Spec agent has been split into four narrowly-scoped sub-agents driven by a phase-progression model. The coordinator's "Spec-First Workflow" gate has been replaced with state-detection routing across explicit named phases (envision → constitution → prd → architecture → roadmap → spec.feature → design → tasks → implement → review). DevSquad's vocabulary (Conductor, Delivery Agents, Support Agents, Impact Classification, Comprehension Checkpoints, Spec Amendment, ADRs) has been adopted at the concept layer; Squad's distinctive execution patterns are preserved underneath.
+
+The full Rosetta Stone — concept-by-concept mapping, the four locked design decisions, Squad-only features that were preserved — is at [`devsquad-mapping.md`](devsquad-mapping.md).
 
 ---
 
-## New Files (no upstream equivalent)
+## New files (no upstream equivalent)
 
 These files are entirely new. Upstream merges will never conflict with them.
-
-### Spec Agent
-
-| File | Purpose |
-|------|---------|
-| `.squad/agents/spec/charter.md` | Live Spec agent charter for this repo's own squad |
-| `templates/agents/spec/charter.md` | Template scaffolded into user projects via `squad init` / `squad upgrade` |
-
-### Project Templates
-
-| File | Purpose |
-|------|---------|
-| `templates/project/constitution.md` | Project constitution template |
-| `templates/project/prd.md` | Product Requirements Document template |
-| `templates/project/architecture.md` | Architecture document template |
-
-### Feature Spec Templates
-
-| File | Purpose |
-|------|---------|
-| `templates/spec/goals.md` | Discovery phase template |
-| `templates/spec/research.md` | Research phase template |
-| `templates/spec/requirements.md` | Requirements phase template |
-| `templates/spec/design.md` | Design phase template |
-| `templates/spec/tasks.md` | Task breakdown template |
 
 ### Documentation
 
 | File | Purpose |
 |------|---------|
-| `docs/ralph-specum/spec-agent-guide.md` | User guide for the Spec agent (this fork) |
-| `docs/ralph-specum/fork-changes.md` | This file — what's different from upstream |
-| `docs/ralph-specum/squad-spec-guide.md` | Implementation guide — how the spec workflow was built |
-| `docs/ralph-specum/implementation-spec.md` | Technical build spec for the integration |
-| `docs/ralph-specum/copilot-cli-instructions.md` | How to implement with Copilot CLI |
+| `docs/ralph-specum/devsquad-mapping.md` | **Rosetta Stone** — concept mapping Squad ↔ DevSquad, four locked design decisions, Squad-only feature inventory, list of DevSquad concepts deliberately not adopted |
+| `docs/ralph-specum/fork-changes.md` | This file |
+| `docs/ralph-specum/spec-agent-guide.md` | Superseded notice — points readers at the four sub-agent charters + Rosetta Stone |
+| `docs/ralph-specum/squad-spec-guide.md` | Earlier implementation guide (predates DevSquad alignment) |
+| `docs/ralph-specum/implementation-spec.md` | Earlier technical build spec (predates DevSquad alignment) |
+| `docs/ralph-specum/copilot-cli-instructions.md` | Copilot CLI implementation notes |
 | `docs/ralph-specum/upstream-sync-guide.md` | How to sync this fork with upstream |
 
-### Scripts
+### Spec sub-agent charters
+
+Each sub-agent owns exactly one phase from the new Phase Routing model.
+
+| File | Phase owned | Output |
+|------|-------------|--------|
+| `.squad/agents/spec-constitution/charter.md` (live) | `constitution` | `.squad/project/constitution.md` |
+| `.squad/agents/spec-prd/charter.md` (live) | `prd` | `.squad/project/prd.md` |
+| `.squad/agents/spec-feature/charter.md` (live) | `spec.feature` + `tasks` | `.squad/specs/{NNN}-{slug}/{goals,research,requirements,tasks}.md` |
+| `.squad/agents/spec-index/charter.md` (live) | `index` | `.squad/specs/.index/` |
+
+The same four charters are mirrored in the install templates at `packages/squad-{cli,sdk}/templates/agents/spec-{name}/charter.md`. They ship to new squads via:
+- `squad upgrade` — via 5 new `TEMPLATE_MANIFEST` entries in `packages/squad-cli/src/cli/core/templates.ts` with destinations at live agent locations (`agents/{name}/charter.md`) and `overwriteOnUpgrade: true`
+- `squad init` — via a system-agent materialization loop in `packages/squad-sdk/src/config/init.ts` that scans `templates/agents/*/charter.md` and writes to `.squad/agents/{name}/charter.md` with `writeIfNotExists` semantics
+
+### Skills (8 new)
+
+| Skill | Used by | Purpose |
+|-------|---------|---------|
+| `plain-language-interview` | All spec sub-agents | "Option N means…" interview UX pattern |
+| `architecture-design` | Lead | Project-level architecture by concern (data, API, infra) — fan-out template |
+| `roadmap-planning` | Lead | Feature decomposition + Spec Status Dashboard + project status.json |
+| `feature-design` | Domain specialists | Per-feature design fan-out across concerns (Backend, Frontend, Tester) |
+| `task-workflow-selection` | spec-feature | POC-first / TDD / Bug-TDD selection by intent |
+| `task-decomposition-format` | spec-feature | Checkbox format, sub-fields, `[VERIFY]` checkpoints, sibling `checklists/` |
+| `feature-state-tracking` | Multi-agent (spec-feature, coordinator, Lead) | `state.json` + `.progress.md` write triggers |
+| `worktree-lifecycle` | Coordinator | Issue-based git worktree management (when worktree mode is enabled) |
+
+Live at `.squad/skills/{name}/SKILL.md`; mirrored to install templates at `packages/squad-{cli,sdk}/templates/skills/{name}/SKILL.md`. Ship via `syncAllSkills` (upgrade) and the SDK init template copy.
+
+### Skill index
 
 | File | Purpose |
 |------|---------|
-| `scripts/sync-upstream.ps1` | PowerShell script to fetch upstream, merge, rebase, and push |
+| `.squad/skills/README.md` | Categorized skill index — DevSquad's 5 categories (Plan & Architecture, Work Items & Estimation, Quality & Security, Development, Project Setup) plus a Squad Operations category for capabilities DevSquad doesn't have |
+
+### ADR template
+
+| File | Purpose |
+|------|---------|
+| `.squad/templates/architecture/decisions/adr-template.md` | DevSquad-style ADR with ranked priorities, options scoring, review checkpoints. Used for High-impact architectural decisions; routine team agreements continue to use the lightweight `decisions.md` / inbox path |
+
+Mirrored to `packages/squad-{cli,sdk}/templates/architecture/decisions/adr-template.md`.
+
+### Earlier (pre-DevSquad-alignment) additions still present
+
+Project templates (`templates/project/{constitution,prd,architecture}.md`) and per-feature spec templates (`templates/spec/{goals,research,requirements,design,tasks}.md`) — added in earlier ralph-specum work, still in use by the new sub-agents.
+
+PowerShell sync helper: `scripts/sync-upstream.ps1`.
 
 ---
 
-## Modified Files (from upstream)
+## Modified files (from upstream)
 
-These files exist in upstream Squad and have been changed in this fork. These are the files to watch carefully during upstream syncs.
+These files exist in upstream Squad and have been changed in this fork. Watch carefully during upstream syncs.
 
-### `index.cjs`
+### `packages/squad-cli/templates/squad.agent.md.template` (coordinator)
 
-**Change**: 16 lines added that scaffold the Spec agent during `squad init` and `squad upgrade`.
+The main coordinator prompt. Substantially rewritten by the DevSquad alignment refactor.
 
-**Location**: Lines 1784–1798 (approximately — upstream changes will shift line numbers).
+**New / replaced sections:**
+- `Agent Taxonomy` — Conductor / Delivery / Support / Advisory tiers
+- `Phase Routing` — replaces the old "Spec-First Workflow" gate; phase progression table + state-detection routing table
+- `Routing` intent table — explicit lanes for bug fixes, refactors, framework changes (bypass spec phases), Spec Amendment, Comprehension Checkpoint follow-ups
+- `Action Protocol (Selective)` — `[ASK]` and `[CHECKPOINT]` fenced-block syntax; explicit non-adoption of `[CREATE]/[EDIT]/[BOARD]`
+- `Comprehension Checkpoint` — post-implementation gate
+- `Spec Amendment` — Impact-tiered mid-flight spec revision flow with audit trail
+- `Impact Classification` — Low/Medium/High risk axis (orthogonal to Response Mode)
+- `Reasoning & Handoff` — names the existing spawn prompt fields and disk-state handoff
+- `Context Management` — names the layered context model (Coordinator session / Project state / Agent memory / Phase state)
 
-**What it does**: When `squad init` or `squad upgrade` runs in a user's project, it copies:
-- `templates/agents/spec/charter.md` → `.squad/agents/spec/charter.md`
+**Slimmed sections (delinked to existing skills):**
+- `Per-Agent Model Selection` (was 93 lines) — now references `.copilot/skills/model-selection/SKILL.md`
+- `Client Compatibility` (was 44 lines) — now references `.copilot/skills/client-compatibility/SKILL.md`
+- `Worktree Awareness` — slimmed inline; lifecycle moved to `.copilot/skills/worktree-lifecycle/SKILL.md`
+- `Reviewer Rejection Protocol` + `Reviewer Rejection Lockout Semantics` — collapsed to one block referencing `.copilot/skills/reviewer-protocol/SKILL.md`
 
-This means every project initialised or upgraded from this fork automatically gets the Spec agent.
+**Net size:** 1146 lines (upstream baseline pre-fork) → 1414 lines (peak) → **1263 lines** (post bloat-reduction). Still ~117 lines larger than upstream.
 
-**Merge risk**: Low. The addition is isolated within the init/upgrade scaffolding block. Look for the section that scaffolds other agents and confirm our spec block is still adjacent to it.
+**Merge risk: HIGH.** Upstream will continue to evolve this file. Our additions are scattered — Agent Taxonomy near the top, Phase Routing in the middle, Action Protocol/Checkpoint/Amendment as a cluster, Reasoning & Handoff near the end. During merges, preserve every section listed above.
 
-### `templates/squad.agent.md`
+This file exists in **5 copies** across the repo (see [Multiple template copies](#multiple-template-copies) below).
 
-**Change**: Multiple sections appended to the coordinator's instruction file.
+### `packages/squad-sdk/templates/squad.agent.md.template`
 
-**What was added**:
+Mirrored from the CLI version. Same risk profile.
 
-1. **Spec-first workflow** — The coordinator now checks for the existence of `constitution.md` and `prd.md` before routing to any implementation agent. If they don't exist, it routes to the Spec agent first.
+### `templates/squad.agent.md.template` (root)
 
-2. **Constitution validation** — Before accepting any spec or implementation PR, the coordinator validates it against the `MUST` rules in `constitution.md`.
+Mirrored from the CLI version. Read by SDK init in dev mode (per `getSDKTemplatesDir()` line 40 fallback).
 
-3. **Auto-merge** — PRs that pass all quality gates (V4/V5/V6 checkpoints in `tasks.md`) are automatically merged without waiting for manual review.
+### `.squad/agents/spec/charter.md`
 
-4. **Continuous mode** — After a feature completes: extract learnings, re-index the codebase, update the roadmap status, and start the next feature spec automatically.
+Was 746 lines — the original monolithic Spec agent charter (constitution + project-level + indexing + feature-level all in one file). Now **65 lines** — a family-index router pointing at the four sub-agents and listing which responsibilities migrated to Lead via skills.
 
-5. **Task dispatch** — The coordinator reads `tasks.md` and dispatches tasks to agents in order, respecting `[P]` parallel markers and dependency ordering.
+The same conversion applies to `packages/squad-{cli,sdk}/templates/agents/spec/charter.md`.
 
-**Merge risk**: Medium. If upstream changes `squad.agent.md` significantly, the appended sections may need to be re-applied. Keep a copy of our additions in this document for reference.
+### `.squad/team.md` and `.squad/templates/roster.md`
 
-**Our additions block** (re-apply if lost after an upstream merge):
+Added `Tier` column (Conductor / Delivery / Support / Advisory) per [Agent Taxonomy](../../packages/squad-cli/templates/squad.agent.md.template#agent-taxonomy). The four spec sub-agents added to the live roster (squad-on-squad).
 
-```markdown
-## Spec-First Workflow
+Mirrored to `packages/squad-{cli,sdk}/templates/roster.md`.
 
-Before routing any work to implementation agents, check:
+### `.squad/templates/spawn-template.md` + package mirrors
 
-1. Does `.squad/project/constitution.md` exist?
-   - No → Route to Spec agent: "No constitution found. Starting project setup."
-   
-2. Does `.squad/project/prd.md` exist?
-   - No → Route to Spec agent: "No PRD found. Starting project-level spec."
+Restructured into clear field tiers: always-present, phase-routed (when applicable), contextual. Adds `PHASE`, `IMPACT`, `CEREMONY`, `OUTPUT`, `RELEVANT SKILLS` as conditional fields. Adds an Action Protocol reminder block at the bottom.
 
-3. Does `.squad/specs/{feature}/tasks.md` exist for the requested feature?
-   - No → Route to Spec agent: "No spec found for {feature}. Starting feature spec."
+### `packages/squad-cli/src/cli/core/templates.ts`
 
-Only when all three exist should implementation begin.
+Added 5 new `TEMPLATE_MANIFEST` entries:
+- 4 sub-agent charters (live destinations: `agents/spec-{name}/charter.md`)
+- 1 spec family-index router (live destination: `agents/spec/charter.md`)
 
-## Constitution Validation
+All `overwriteOnUpgrade: true` — system agents get refreshed on every upgrade.
 
-Before accepting any spec artifact or implementation PR, validate it against
-the MUST rules in `.squad/project/constitution.md`. Flag any violation as a
-blocking issue — do not auto-approve specs or PRs that violate MUST rules.
+### `packages/squad-sdk/src/config/init.ts`
 
-## Auto-Merge
+Added a system-agent materialization loop after the regular agent creation loop (around line 845). For each `templates/agents/*/charter.md` shipped in the SDK templates, copies to `.squad/agents/{name}/charter.md` with `writeIfNotExists` semantics. This is how fresh `squad init` runs get the rich sub-agent charters rather than the generic 25-line `generateCharter()` output.
 
-When a feature's tasks.md shows all V4, V5, and V6 checkpoints passing:
-- Confirm CI is green
-- Merge the PR automatically
-- Announce: "Feature {name} complete. Moving to next feature."
+### `index.cjs` (earlier change, still present)
 
-## Continuous Mode
+16-line block scaffolding the original Spec agent. Now superseded by the system-agent materialization loop above, but still in place. **Merge risk:** Low to Medium — this file is bundled, look for the spec-scaffolding block during upstream sync.
 
-After a feature completes (all tasks done, PR merged):
-1. Ask Spec agent to extract learnings into `.squad/specs/{feature}/learnings.md`
-2. Trigger a codebase re-index: "Index changed files since last index"
-3. Update roadmap.md Spec Status table
-4. Route to Spec agent for the next [MVP] feature on the roadmap
+### `README.md` (earlier change, still present)
 
-## Task Dispatch
-
-When a feature spec is approved and `tasks.md` exists:
-1. Read `tasks.md` from `.squad/specs/{feature}/`
-2. Dispatch tasks in order: T01, T02, T03...
-3. Tasks marked `[P]` can be dispatched in parallel
-4. Wait for `[VERIFY]` checkpoints to pass before continuing
-5. Update `state.json` and `.progress.md` as each task completes
-```
-
-### `README.md`
-
-**Change**: Fork-specific content added at the top of the file, before the original upstream README.
-
-**What was added**:
-- "What This Fork Adds" section describing the Spec agent and coordinator enhancements
-- Install instructions (global npm install from this fork)
-- Upgrade instructions
-- Links to fork documentation
-
-**Merge risk**: High. Upstream will update `README.md` regularly. Our content is at the top, upstream content starts after a `---` separator. During merges, preserve the top block and take all upstream changes to the lower section.
+Fork-specific content at the top of the file. **Merge risk:** High — preserve the top block and take all upstream changes below the `---` separator.
 
 ---
 
-## Behavioral Changes
+## Behavioral changes
 
-### `squad init` and `squad upgrade`
+### Spec agent dispatch
 
-Both commands now scaffold a Spec agent into the user's project:
+**Before this fork's DevSquad alignment** (initial ralph-specum integration): A single Spec agent at `.squad/agents/spec/` running 4 operating levels (constitution / project-level / indexing / feature-level) sequentially based on file presence. Every Spec invocation risked absorbing all four levels.
 
-- **Before** (upstream): Only core agents (lead, frontend, backend, tester, scribe) are scaffolded
-- **After** (this fork): Spec agent charter is also scaffolded to `.squad/agents/spec/charter.md`
-- **Templates scaffolded**: `.squad/templates/project/` and `.squad/templates/spec/` directories are populated
+**After (current state):** The coordinator detects state and routes to one of four narrowly-scoped sub-agents (`spec-constitution`, `spec-prd`, `spec-feature`, `spec-index`). Architecture and roadmap responsibilities migrated to Lead, who reads the relevant skills (`architecture-design`, `roadmap-planning`).
 
 ### Coordinator routing
 
-- **Before** (upstream): Coordinator routes directly to implementation agents based on the task
-- **After** (this fork): Coordinator checks for constitution → PRD → feature spec before any implementation routing. Missing specs trigger the Spec agent.
+**Before (upstream):** Coordinator routes directly to implementation agents based on the task.
 
-### PR merge behavior
+**After:** Coordinator runs phase detection (state-driven *suggestion*, never a forced gate). Bug fixes, refactors, and framework changes bypass spec phases entirely. Ambiguous prompts route to `envision` (Lead-led scoping) instead of defaulting to spec.
 
-- **Before** (upstream): PRs require manual merge
-- **After** (this fork): PRs auto-merge when all quality gates (V4/V5/V6) pass and CI is green
+### Approval gates
 
----
+**Before:** Implicit approval points buried in agent charters.
 
-## Template Structure (new)
+**After:** Explicit `[CHECKPOINT]` fenced blocks at every phase boundary, mediated by the coordinator. Comprehension Checkpoint after implementation. Spec Amendment flow for mid-flight revisions.
 
-This fork adds two template directories:
+### Decision records
 
-### `templates/project/` — project-level templates
+**Before:** All decisions logged to `.squad/decisions.md` via the inbox drop-box pattern.
 
-Scaffolded once per project into `.squad/templates/project/`:
-
-| Template | Used for |
-|----------|---------|
-| `constitution.md` | Project principles — MUST/SHOULD/MAY rules |
-| `prd.md` | Product Requirements Document |
-| `architecture.md` | Architecture overview |
-
-### `templates/spec/` — per-feature spec templates
-
-Scaffolded once per project into `.squad/templates/spec/`:
-
-| Template | Spec phase |
-|----------|-----------|
-| `goals.md` | Discovery |
-| `research.md` | Research |
-| `requirements.md` | Requirements |
-| `design.md` | Design |
-| `tasks.md` | Task breakdown |
+**After:** Two-tier model. ADRs (`.squad/architecture/decisions/{NNN}-{slug}.md`) for architectural / load-bearing decisions that would survive a rewrite. Decisions inbox for routine team agreements (drop-box pattern preserved).
 
 ---
 
-## Upstream Merge Checklist
+## Multiple template copies
+
+The repo currently has **5 copies** of `squad.agent.md.template`:
+
+| Path | Status | Read by |
+|------|--------|---------|
+| `packages/squad-cli/templates/squad.agent.md.template` | Current (1263 lines) | `squad upgrade` |
+| `packages/squad-sdk/templates/squad.agent.md.template` | Current (mirrored from CLI) | `squad init` (production) |
+| `templates/squad.agent.md.template` (root) | Current (mirrored) | `squad init` (dev mode fallback) |
+| `.squad-templates/squad.agent.md` | **Stale, 1327 lines, unclear purpose** | Not read by install code |
+| `.github/agents/squad.agent.md` | Live coordinator for this repo | This repo's squad-on-squad team |
+
+**Merge guidance:**
+- Three of these (`packages/squad-cli/templates/`, `packages/squad-sdk/templates/`, `templates/`) are kept in sync with each other manually. After any upstream merge that touches one, mirror the result to the other two.
+- `.squad-templates/squad.agent.md` is a snapshot whose role isn't clear — leave alone unless you have a reason to touch it.
+- `.github/agents/squad.agent.md` is regenerated by `squad upgrade` from the CLI template.
+
+---
+
+## Upstream merge checklist
 
 When pulling upstream changes into this fork, verify:
 
-- [ ] `index.cjs` — confirm spec scaffolding block (lines ~1784-1798) still exists and is correct
-- [ ] `templates/squad.agent.md` — confirm our 5 appended sections are still present
-- [ ] `README.md` — confirm the fork intro block at the top is intact
-- [ ] `templates/agents/spec/charter.md` — upstream doesn't have this, but verify it wasn't accidentally deleted
-- [ ] Run `squad init` in a test project and verify `.squad/agents/spec/charter.md` is scaffolded
+- [ ] **Coordinator template** — confirm Phase Routing, Action Protocol, Comprehension Checkpoint, Spec Amendment, Reasoning & Handoff, Context Management, Impact Classification, Agent Taxonomy sections all preserved across the 3 mirrored locations
+- [ ] **Spec family** — `agents/spec/charter.md` is the family-index router, NOT the old monolithic charter
+- [ ] **Spec sub-agents** — `agents/spec-{constitution,prd,feature,index}/charter.md` exist in templates and live
+- [ ] **TEMPLATE_MANIFEST** — 5 entries for spec sub-agent + router charters present in `packages/squad-cli/src/cli/core/templates.ts`
+- [ ] **SDK init system-agent loop** — present in `packages/squad-sdk/src/config/init.ts` after the regular agent creation loop
+- [ ] **Skills** — 8 new skills present in templates and live; skill README index up to date
+- [ ] **ADR template** — present in `.squad/templates/architecture/decisions/adr-template.md` and mirrors
+- [ ] **Spawn template** — has structured Reasoning & Handoff fields and Action Protocol reminder
+- [ ] **Roster / team.md** — Tier column intact
+- [ ] **`index.cjs`** — spec-scaffolding block still adjacent to other agent scaffolds
+- [ ] **`README.md`** — fork intro block at the top intact
+- [ ] Run `squad init` in a test project and verify the four spec sub-agent charters scaffold correctly
+- [ ] Run `squad upgrade` in a test project and verify the live charters refresh
 
 For the full sync process, see [upstream-sync-guide.md](upstream-sync-guide.md).
 
 ---
 
-## Version History
+## Version history
 
 | Date | Change | Commit |
 |------|--------|--------|
-| 2026-04-03 | Initial documentation of fork changes | *(this commit)* |
+| 2026-05-09 | **DevSquad alignment refactor** — phase routing, Spec sub-agent split, action protocol, skill extractions, install/upgrade parity | `9df87b17` |
+| 2026-04-03 | Initial documentation of fork changes | *(earlier)* |
 | 2026-04-03 | Spec agent charter updated for Copilot CLI compatibility | `054326a7` |
 | 2026-04-03 | Scribe: merge 3 inbox decisions | `033e0b25` |
 | 2026-03-xx | Initial spec agent + coordinator enhancements | *(earlier commits)* |
